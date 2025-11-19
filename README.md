@@ -40,6 +40,21 @@ A beautiful, real-time Text User Interface (TUI) visualizer for the [bd (beads)]
 - [bd (beads)](https://github.com/steveyegge/beads) issue tracker
 - A `.beads/` directory with `beads.db` in your project
 
+### Homebrew (macOS)
+
+The easiest way to install on macOS:
+
+```bash
+brew tap assimelha/tap
+brew install bdui
+```
+
+To upgrade to the latest version:
+
+```bash
+brew upgrade bdui
+```
+
 ### Download Pre-built Binary
 
 Download the latest release for your platform:
