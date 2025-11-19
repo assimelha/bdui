@@ -1,0 +1,29 @@
+{
+  "name": "bdui",
+  "version": "0.1.0",
+  "description": "TUI visualizer for bd (beads) issue tracker",
+  "type": "module",
+  "main": "src/index.tsx",
+  "scripts": {
+    "dev": "bun run src/index.tsx",
+    "test:notifications": "bun run test-notification.ts",
+    "build": "bun build --compile ./src/index.tsx --outfile bdui",
+    "build:all": "bun run build:macos && bun run build:linux && bun run build:windows",
+    "build:macos": "bun build --compile --target=bun-darwin-arm64 ./src/index.tsx --outfile dist/bdui-macos-arm64 && bun build --compile --target=bun-darwin-x64 ./src/index.tsx --outfile dist/bdui-macos-x64",
+    "build:linux": "bun build --compile --target=bun-linux-x64 ./src/index.tsx --outfile dist/bdui-linux-x64",
+    "build:windows": "bun build --compile --target=bun-windows-x64 ./src/index.tsx --outfile dist/bdui-windows-x64.exe"
+  },
+  "dependencies": {
+    "ink": "^6.0.0",
+    "node-notifier": "^10.0.1",
+    "react": "^19.0.0",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node-notifier": "^8.0.5",
+    "@types/react": "^19.0.6",
+    "react-devtools-core": "^7.0.1",
+    "typescript": "^5.7.2"
+  }
+}
