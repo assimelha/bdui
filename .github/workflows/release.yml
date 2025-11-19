@@ -18,7 +18,7 @@ jobs:
           - os: macos-latest
             target: bun-darwin-arm64
             artifact: bdui-macos-arm64
-          - os: macos-15-intel  # Intel Mac
+          - os: macos-latest  # Cross-compile x64 on ARM
             target: bun-darwin-x64
             artifact: bdui-macos-x64
           - os: ubuntu-latest
