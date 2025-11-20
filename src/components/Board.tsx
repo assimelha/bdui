@@ -23,15 +23,10 @@ function KanbanView() {
   const showDetails = useBeadsStore(state => state.showDetails);
   const showSearch = useBeadsStore(state => state.showSearch);
   const showFilter = useBeadsStore(state => state.showFilter);
-  const showCreateForm = useBeadsStore(state => state.showCreateForm);
-  const showEditForm = useBeadsStore(state => state.showEditForm);
   const showExportDialog = useBeadsStore(state => state.showExportDialog);
   const showThemeSelector = useBeadsStore(state => state.showThemeSelector);
-  const toggleCreateForm = useBeadsStore(state => state.toggleCreateForm);
-  const toggleEditForm = useBeadsStore(state => state.toggleEditForm);
   const toggleExportDialog = useBeadsStore(state => state.toggleExportDialog);
   const toggleThemeSelector = useBeadsStore(state => state.toggleThemeSelector);
-  const reloadCallback = useBeadsStore(state => state.reloadCallback);
   const notificationsEnabled = useBeadsStore(state => state.notificationsEnabled);
   const terminalWidth = useBeadsStore(state => state.terminalWidth);
   const terminalHeight = useBeadsStore(state => state.terminalHeight);
@@ -182,39 +177,6 @@ function KanbanView() {
         </Box>
       </Box>
 
-      {/* Create Issue Form */}
-      {showCreateForm && (
-        <Box
-          position="absolute"
-          top={Math.floor(terminalHeight / 2) - 15}
-          left={Math.floor(terminalWidth / 2) - 40}
-        >
-          <CreateIssueForm
-            onClose={toggleCreateForm}
-            onSuccess={() => {
-              if (reloadCallback) reloadCallback();
-            }}
-          />
-        </Box>
-      )}
-
-      {/* Edit Issue Form */}
-      {showEditForm && selectedIssue && (
-        <Box
-          position="absolute"
-          top={Math.floor(terminalHeight / 2) - 15}
-          left={Math.floor(terminalWidth / 2) - 40}
-        >
-          <EditIssueForm
-            issue={selectedIssue}
-            onClose={toggleEditForm}
-            onSuccess={() => {
-              if (reloadCallback) reloadCallback();
-            }}
-          />
-        </Box>
-      )}
-
       {/* Export Dialog */}
       {showExportDialog && selectedIssue && (
         <Box
@@ -249,6 +211,11 @@ export function Board() {
   const data = useBeadsStore(state => state.data);
   const terminalWidth = useBeadsStore(state => state.terminalWidth);
   const terminalHeight = useBeadsStore(state => state.terminalHeight);
+  const returnToPreviousView = useBeadsStore(state => state.returnToPreviousView);
+  const reloadCallback = useBeadsStore(state => state.reloadCallback);
+  const getSelectedIssue = useBeadsStore(state => state.getSelectedIssue);
+
+  const selectedIssue = getSelectedIssue();
 
   return (
     <Box flexDirection="column" width={terminalWidth} height={terminalHeight}>
@@ -267,6 +234,23 @@ export function Board() {
           data={data}
           terminalWidth={terminalWidth}
           terminalHeight={terminalHeight}
+        />
+      )}
+      {viewMode === 'create-issue' && (
+        <CreateIssueForm
+          onClose={returnToPreviousView}
+          onSuccess={() => {
+            if (reloadCallback) reloadCallback();
+          }}
+        />
+      )}
+      {viewMode === 'edit-issue' && selectedIssue && (
+        <EditIssueForm
+          issue={selectedIssue}
+          onClose={returnToPreviousView}
+          onSuccess={() => {
+            if (reloadCallback) reloadCallback();
+          }}
         />
       )}
 

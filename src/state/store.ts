@@ -24,13 +24,12 @@ interface BeadsStore {
   itemsPerPage: number;
 
   // UI state
-  viewMode: 'kanban' | 'tree' | 'graph' | 'stats';
+  viewMode: 'kanban' | 'tree' | 'graph' | 'stats' | 'create-issue' | 'edit-issue';
+  previousView: 'kanban' | 'tree' | 'graph' | 'stats';
   showHelp: boolean;
   showDetails: boolean;
   showSearch: boolean;
   showFilter: boolean;
-  showCreateForm: boolean;
-  showEditForm: boolean;
   showExportDialog: boolean;
   showThemeSelector: boolean;
   currentTheme: string;
@@ -61,13 +60,14 @@ interface BeadsStore {
   toggleNotifications: () => void;
   toggleSearch: () => void;
   toggleFilter: () => void;
-  toggleCreateForm: () => void;
-  toggleEditForm: () => void;
   toggleExportDialog: () => void;
   toggleThemeSelector: () => void;
   setTheme: (theme: string) => void;
   clearFilters: () => void;
-  setViewMode: (mode: 'kanban' | 'tree' | 'graph' | 'stats') => void;
+  setViewMode: (mode: 'kanban' | 'tree' | 'graph' | 'stats' | 'create-issue' | 'edit-issue') => void;
+  navigateToCreateIssue: () => void;
+  navigateToEditIssue: () => void;
+  returnToPreviousView: () => void;
   setSearchQuery: (query: string) => void;
   getSelectedIssue: () => Issue | null;
   getStatusKey: () => StatusKey;
@@ -112,12 +112,11 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
 
   // UI state
   viewMode: 'kanban',
+  previousView: 'kanban',
   showHelp: false,
   showDetails: false,
   showSearch: false,
   showFilter: false,
-  showCreateForm: false,
-  showEditForm: false,
   showExportDialog: false,
   showThemeSelector: false,
   currentTheme: 'default',
@@ -334,33 +333,10 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
     }));
   },
 
-  toggleCreateForm: () => {
-    set(state => ({
-      showCreateForm: !state.showCreateForm,
-      // Close other modals when opening create form
-      showEditForm: state.showCreateForm ? state.showEditForm : false,
-      showSearch: state.showCreateForm ? state.showSearch : false,
-      showFilter: state.showCreateForm ? state.showFilter : false,
-    }));
-  },
-
-  toggleEditForm: () => {
-    set(state => ({
-      showEditForm: !state.showEditForm,
-      // Close other modals when opening edit form
-      showCreateForm: state.showEditForm ? state.showCreateForm : false,
-      showSearch: state.showEditForm ? state.showSearch : false,
-      showFilter: state.showEditForm ? state.showFilter : false,
-      showExportDialog: state.showEditForm ? state.showExportDialog : false,
-    }));
-  },
-
   toggleExportDialog: () => {
     set(state => ({
       showExportDialog: !state.showExportDialog,
       // Close other modals when opening export dialog
-      showCreateForm: state.showExportDialog ? state.showCreateForm : false,
-      showEditForm: state.showExportDialog ? state.showEditForm : false,
       showSearch: state.showExportDialog ? state.showSearch : false,
       showFilter: state.showExportDialog ? state.showFilter : false,
       showThemeSelector: state.showExportDialog ? state.showThemeSelector : false,
@@ -371,8 +347,6 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
     set(state => ({
       showThemeSelector: !state.showThemeSelector,
       // Close other modals when opening theme selector
-      showCreateForm: state.showThemeSelector ? state.showCreateForm : false,
-      showEditForm: state.showThemeSelector ? state.showEditForm : false,
       showSearch: state.showThemeSelector ? state.showSearch : false,
       showFilter: state.showThemeSelector ? state.showFilter : false,
       showExportDialog: state.showThemeSelector ? state.showExportDialog : false,
@@ -390,7 +364,42 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
     });
   },
 
-  setViewMode: (mode) => set({ viewMode: mode }),
+  setViewMode: (mode) => {
+    const state = get();
+    // Save current view as previous if it's not a form view
+    if (mode === 'create-issue' || mode === 'edit-issue') {
+      if (state.viewMode !== 'create-issue' && state.viewMode !== 'edit-issue') {
+        set({ viewMode: mode, previousView: state.viewMode });
+      } else {
+        set({ viewMode: mode });
+      }
+    } else {
+      set({ viewMode: mode, previousView: mode });
+    }
+  },
+
+  navigateToCreateIssue: () => {
+    const state = get();
+    if (state.viewMode !== 'create-issue' && state.viewMode !== 'edit-issue') {
+      set({ viewMode: 'create-issue', previousView: state.viewMode });
+    } else {
+      set({ viewMode: 'create-issue' });
+    }
+  },
+
+  navigateToEditIssue: () => {
+    const state = get();
+    if (state.viewMode !== 'create-issue' && state.viewMode !== 'edit-issue') {
+      set({ viewMode: 'edit-issue', previousView: state.viewMode });
+    } else {
+      set({ viewMode: 'edit-issue' });
+    }
+  },
+
+  returnToPreviousView: () => {
+    const state = get();
+    set({ viewMode: state.previousView });
+  },
 
   setSearchQuery: (query) => set({ searchQuery: query }),
 }));

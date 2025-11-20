@@ -1,6 +1,6 @@
 {
   "name": "bdui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TUI visualizer for bd (beads) issue tracker",
   "type": "module",
   "main": "src/index.tsx",

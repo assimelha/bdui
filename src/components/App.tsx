@@ -92,34 +92,52 @@ export function App() {
   const toggleNotifications = useBeadsStore(state => state.toggleNotifications);
   const toggleSearch = useBeadsStore(state => state.toggleSearch);
   const toggleFilter = useBeadsStore(state => state.toggleFilter);
-  const toggleCreateForm = useBeadsStore(state => state.toggleCreateForm);
-  const toggleEditForm = useBeadsStore(state => state.toggleEditForm);
+  const navigateToCreateIssue = useBeadsStore(state => state.navigateToCreateIssue);
+  const navigateToEditIssue = useBeadsStore(state => state.navigateToEditIssue);
+  const returnToPreviousView = useBeadsStore(state => state.returnToPreviousView);
   const toggleExportDialog = useBeadsStore(state => state.toggleExportDialog);
   const toggleThemeSelector = useBeadsStore(state => state.toggleThemeSelector);
   const clearFilters = useBeadsStore(state => state.clearFilters);
   const setViewMode = useBeadsStore(state => state.setViewMode);
+  const viewMode = useBeadsStore(state => state.viewMode);
   const showSearch = useBeadsStore(state => state.showSearch);
   const showFilter = useBeadsStore(state => state.showFilter);
-  const showCreateForm = useBeadsStore(state => state.showCreateForm);
-  const showEditForm = useBeadsStore(state => state.showEditForm);
   const showExportDialog = useBeadsStore(state => state.showExportDialog);
   const showThemeSelector = useBeadsStore(state => state.showThemeSelector);
 
   // Handle keyboard input
   useInput((input, key) => {
-    // Always allow quit
-    if (input === 'q' || (key.ctrl && input === 'c')) {
+    const inFormView = viewMode === 'create-issue' || viewMode === 'edit-issue';
+
+    // Handle 'q' key - disabled in forms, quits directly otherwise
+    if (input === 'q') {
+      if (inFormView) {
+        // 'q' does nothing in forms (allows typing 'q')
+        return;
+      }
+      // Not in form view, quit directly
       exit();
     }
+
+    // Ctrl+C always quits (handled by Ink/system)
 
     // Always allow help
     if (input === '?') {
       toggleHelp();
     }
 
-    // If search, filter, forms, export dialog, or theme selector are active, let those components handle input
+    // If in form view, allow ESC to return to previous view
+    if (viewMode === 'create-issue' || viewMode === 'edit-issue') {
+      if (key.escape) {
+        returnToPreviousView();
+      }
+      // Let form components handle all other input
+      return;
+    }
+
+    // If search, filter, export dialog, or theme selector are active, let those components handle input
     // (they handle ESC to close themselves)
-    if (showSearch || showFilter || showCreateForm || showEditForm || showExportDialog || showThemeSelector) {
+    if (showSearch || showFilter || showExportDialog || showThemeSelector) {
       return;
     }
 
@@ -150,13 +168,13 @@ export function App() {
 
     // Create new issue
     if (input === 'N') { // Shift+N
-      toggleCreateForm();
+      navigateToCreateIssue();
       return;
     }
 
     // Edit issue
     if (input === 'e') {
-      toggleEditForm();
+      navigateToEditIssue();
       return;
     }
 
