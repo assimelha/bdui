@@ -6,6 +6,8 @@ A beautiful, real-time Text User Interface (TUI) visualizer for the [bd (beads)]
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg)
 ![Bun](https://img.shields.io/badge/runtime-Bun-f472b6.svg)
 
+![BD TUI Screenshot](assets/screenshot.png)
+
 ## ✨ Features
 
 ### 📊 Multiple Visualizations
