@@ -107,7 +107,14 @@ export async function loadBeads(beadsPath: string = '.beads'): Promise<BeadsData
     };
 
     for (const issue of issues) {
-      // Determine if blocked
+      // Filter blockedBy to only include open blockers (closed blockers don't block anymore)
+      if (issue.blockedBy) {
+        issue.blockedBy = issue.blockedBy.filter(blockerId => {
+          const blocker = byId.get(blockerId);
+          return blocker && blocker.status !== 'closed';
+        });
+      }
+
       const isBlocked = issue.blockedBy && issue.blockedBy.length > 0;
       const actualStatus = isBlocked && issue.status === 'open' ? 'blocked' : issue.status;
 

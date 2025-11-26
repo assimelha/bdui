@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { useBeadsStore } from '../state/store';
+import { getTheme } from '../themes/themes';
 import { StatusColumn } from './StatusColumn';
 import { DetailPanel } from './DetailPanel';
 import { HelpOverlay } from './HelpOverlay';
@@ -13,6 +14,12 @@ import { EditIssueForm } from './EditIssueForm';
 import { ExportDialog } from './ExportDialog';
 import { ThemeSelector } from './ThemeSelector';
 import { StatsView } from './StatsView';
+import { Toast } from './Toast';
+import { FiltersBanner } from './FiltersBanner';
+import { ConfirmDialog } from './ConfirmDialog';
+import { CommandBar } from './CommandBar';
+import { LAYOUT, hasActiveFilters } from '../utils/constants';
+import { Footer } from './Footer';
 import type { Issue } from '../types';
 
 function KanbanView() {
@@ -25,23 +32,25 @@ function KanbanView() {
   const showFilter = useBeadsStore(state => state.showFilter);
   const showExportDialog = useBeadsStore(state => state.showExportDialog);
   const showThemeSelector = useBeadsStore(state => state.showThemeSelector);
+  const showJumpToPage = useBeadsStore(state => state.showJumpToPage);
   const toggleExportDialog = useBeadsStore(state => state.toggleExportDialog);
   const toggleThemeSelector = useBeadsStore(state => state.toggleThemeSelector);
-  const notificationsEnabled = useBeadsStore(state => state.notificationsEnabled);
   const terminalWidth = useBeadsStore(state => state.terminalWidth);
   const terminalHeight = useBeadsStore(state => state.terminalHeight);
   const getSelectedIssue = useBeadsStore(state => state.getSelectedIssue);
   const getFilteredIssues = useBeadsStore(state => state.getFilteredIssues);
   const searchQuery = useBeadsStore(state => state.searchQuery);
   const filter = useBeadsStore(state => state.filter);
+  const viewMode = useBeadsStore(state => state.viewMode);
+  const currentTheme = useBeadsStore(state => state.currentTheme);
+  const theme = getTheme(currentTheme);
 
   const selectedIssue = getSelectedIssue();
+  const filtersActive = hasActiveFilters(filter, searchQuery);
 
   // Apply filtering - rebuild byStatus from filtered issues
   const filteredData = useMemo(() => {
-    const hasActiveFilters = searchQuery.trim() || filter.assignee || filter.status || filter.priority !== undefined || (filter.tags && filter.tags.length > 0);
-
-    if (!hasActiveFilters) {
+    if (!filtersActive) {
       return data;
     }
 
@@ -72,29 +81,29 @@ function KanbanView() {
         blocked: byStatus.blocked.length,
       },
     };
-  }, [data, searchQuery, filter, getFilteredIssues]);
+  }, [data, searchQuery, filter, getFilteredIssues, filtersActive]);
 
   // Responsive layout calculations
-  const COLUMN_WIDTH = 37;
-  const DETAIL_PANEL_WIDTH = 55;
-  const MIN_WIDTH_FOR_DETAIL = COLUMN_WIDTH * 4 + DETAIL_PANEL_WIDTH + 10; // 4 columns + detail + padding
-  const MIN_WIDTH_FOR_ALL_COLUMNS = COLUMN_WIDTH * 4 + 10; // 4 columns + padding
+  const COLUMN_WIDTH = LAYOUT.columnWidth;
+  const DETAIL_PANEL_WIDTH = LAYOUT.detailPanelWidth;
+  const MIN_WIDTH_FOR_DETAIL = COLUMN_WIDTH * 4 + DETAIL_PANEL_WIDTH + 10;
+  const MIN_WIDTH_FOR_ALL_COLUMNS = COLUMN_WIDTH * 4 + 10;
 
   // Auto-hide detail panel on narrow screens
   const shouldShowDetails = showDetails && terminalWidth >= MIN_WIDTH_FOR_DETAIL;
 
   // Determine how many columns to show
   const visibleColumns = terminalWidth < MIN_WIDTH_FOR_ALL_COLUMNS && terminalWidth >= COLUMN_WIDTH * 2
-    ? 2 // Show only 2 columns on narrow screens
+    ? 2
     : terminalWidth < COLUMN_WIDTH * 2
-    ? 1 // Show only 1 column on very narrow screens
-    : 4; // Show all 4 columns on normal screens
+    ? 1
+    : 4;
 
   const statusConfig = [
-    { key: 'open', title: 'Open', color: 'blue' },
-    { key: 'in_progress', title: 'In Progress', color: 'yellow' },
-    { key: 'blocked', title: 'Blocked', color: 'red' },
-    { key: 'closed', title: 'Closed', color: 'green' },
+    { key: 'open', title: 'Open' },
+    { key: 'in_progress', title: 'In Progress' },
+    { key: 'blocked', title: 'Blocked' },
+    { key: 'closed', title: 'Closed' },
   ] as const;
 
   // Filter columns based on screen width
@@ -102,26 +111,32 @@ function KanbanView() {
 
   return (
     <Box flexDirection="column" width={terminalWidth} height={terminalHeight}>
-      {/* Header - compact */}
+      {/* Toast message */}
+      <Toast />
+
+      {/* Header */}
       <Box flexDirection="column">
         <Box justifyContent="space-between">
-          <Text bold color="cyan">
+          <Text bold color={theme.colors.primary}>
             BD TUI - Kanban Board
           </Text>
-          <Text dimColor>
+          <Text color={theme.colors.textDim}>
             {terminalWidth}x{terminalHeight} | Press ? for help
           </Text>
         </Box>
         <Box gap={2}>
-          <Text dimColor>Total: <Text color="white">{filteredData.stats.total}</Text></Text>
-          <Text dimColor>Open: <Text color="blue">{filteredData.stats.open}</Text></Text>
-          <Text dimColor>Blocked: <Text color="red">{filteredData.stats.blocked}</Text></Text>
-          <Text dimColor>Closed: <Text color="green">{filteredData.stats.closed}</Text></Text>
+          <Text color={theme.colors.textDim}>Total: <Text color={theme.colors.text}>{filteredData.stats.total}</Text></Text>
+          <Text color={theme.colors.textDim}>Open: <Text color={theme.colors.statusOpen}>{filteredData.stats.open}</Text></Text>
+          <Text color={theme.colors.textDim}>Blocked: <Text color={theme.colors.statusBlocked}>{filteredData.stats.blocked}</Text></Text>
+          <Text color={theme.colors.textDim}>Closed: <Text color={theme.colors.statusClosed}>{filteredData.stats.closed}</Text></Text>
           {visibleColumns < 4 && (
-            <Text dimColor color="yellow">[{4 - visibleColumns} hidden]</Text>
+            <Text color={theme.colors.warning}>[{4 - visibleColumns} hidden]</Text>
           )}
         </Box>
       </Box>
+
+      {/* Filters banner */}
+      <FiltersBanner />
 
       {/* Search Input */}
       {showSearch && <SearchInput />}
@@ -130,10 +145,10 @@ function KanbanView() {
       {showFilter && <FilterPanel />}
 
       {/* Main content */}
-      <Box>
-        {/* Board columns - each with independent pagination */}
-        <Box>
-          {columnsToShow.map(({ key, title, color }, idx) => {
+      <Box flexGrow={1} overflow="hidden">
+        {/* Board columns */}
+        <Box flexShrink={0}>
+          {columnsToShow.map(({ key, title }, idx) => {
             const columnState = columnStates[key];
             return (
               <StatusColumn
@@ -144,38 +159,32 @@ function KanbanView() {
                 selectedIndex={columnState.selectedIndex}
                 scrollOffset={columnState.scrollOffset}
                 itemsPerPage={itemsPerPage}
-                color={color}
+                statusKey={key}
               />
             );
           })}
         </Box>
 
-        {/* Detail panel - auto-hide on narrow screens */}
+        {/* Detail panel */}
         {shouldShowDetails && (
-          <Box marginLeft={2}>
-            <DetailPanel issue={selectedIssue} />
+          <Box marginLeft={2} flexGrow={1} overflow="hidden">
+            <DetailPanel issue={selectedIssue} maxHeight={terminalHeight - 10} />
           </Box>
         )}
         {showDetails && !shouldShowDetails && (
-          <Box marginLeft={2} padding={1} borderStyle="single" borderColor="yellow">
-            <Text color="yellow">
+          <Box marginLeft={2} padding={1} borderStyle="single" borderColor={theme.colors.warning}>
+            <Text color={theme.colors.warning}>
               Terminal too narrow for detail panel (need {MIN_WIDTH_FOR_DETAIL} cols)
             </Text>
           </Box>
         )}
       </Box>
 
-      {/* Footer - compact */}
-      <Box borderStyle="single" borderColor="gray" paddingX={1}>
-        <Box justifyContent="space-between">
-          <Text dimColor>
-            N new | e edit | / search | f filter | c clear | 1-4 views | ? help | q quit
-          </Text>
-          <Text color={notificationsEnabled ? 'green' : 'gray'}>
-            {notificationsEnabled ? '🔔 ON' : '🔕 OFF'}
-          </Text>
-        </Box>
-      </Box>
+      {/* Command Bar (vim-style) */}
+      {showJumpToPage && <CommandBar />}
+
+      {/* Footer */}
+      <Footer currentView="kanban" />
 
       {/* Export Dialog */}
       {showExportDialog && selectedIssue && (
@@ -201,6 +210,9 @@ function KanbanView() {
           <ThemeSelector onClose={toggleThemeSelector} />
         </Box>
       )}
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog />
     </Box>
   );
 }
@@ -214,8 +226,38 @@ export function Board() {
   const returnToPreviousView = useBeadsStore(state => state.returnToPreviousView);
   const reloadCallback = useBeadsStore(state => state.reloadCallback);
   const getSelectedIssue = useBeadsStore(state => state.getSelectedIssue);
+  const getFilteredIssues = useBeadsStore(state => state.getFilteredIssues);
+  const searchQuery = useBeadsStore(state => state.searchQuery);
+  const filter = useBeadsStore(state => state.filter);
+  const currentTheme = useBeadsStore(state => state.currentTheme);
+  const theme = getTheme(currentTheme);
 
   const selectedIssue = getSelectedIssue();
+
+  // Get filtered issues for stats view
+  const filteredIssues = useMemo(() => {
+    const filtersActive = hasActiveFilters(filter, searchQuery);
+    if (!filtersActive) return data.issues;
+    return getFilteredIssues();
+  }, [data, filter, searchQuery, getFilteredIssues]);
+
+  // Check minimum terminal width
+  if (terminalWidth < LAYOUT.minTerminalWidth) {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Text color={theme.colors.error} bold>Terminal Too Narrow</Text>
+        <Text color={theme.colors.text}>
+          BD TUI requires at least {LAYOUT.minTerminalWidth} columns.
+        </Text>
+        <Text color={theme.colors.textDim}>
+          Current width: {terminalWidth} columns
+        </Text>
+        <Text color={theme.colors.textDim} marginTop={1}>
+          Please resize your terminal window.
+        </Text>
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column" width={terminalWidth} height={terminalHeight}>
@@ -231,7 +273,8 @@ export function Board() {
       )}
       {viewMode === 'stats' && (
         <StatsView
-          data={data}
+          issues={filteredIssues}
+          totalIssues={data.issues.length}
           terminalWidth={terminalWidth}
           terminalHeight={terminalHeight}
         />
@@ -256,6 +299,9 @@ export function Board() {
 
       {/* Help overlay - shared across all views */}
       {showHelp && <HelpOverlay />}
+
+      {/* Confirm dialog - shared across all views */}
+      <ConfirmDialog />
     </Box>
   );
 }

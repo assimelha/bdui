@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useBeadsStore } from '../state/store';
 import { DetailPanel } from './DetailPanel';
+import { Footer } from './Footer';
 import type { Issue, BeadsData } from '../types';
 
 interface TreeNode {
@@ -236,11 +237,7 @@ export function TreeView({ data, terminalHeight }: TreeViewProps) {
       </Box>
 
       {/* Footer */}
-      <Box marginTop={1} borderStyle="single" borderColor="gray" paddingX={1}>
-        <Text dimColor>
-          ↑/↓ navigate | e edit | Enter/Space toggle details | 1-3 views | ? help | q quit
-        </Text>
-      </Box>
+      <Footer currentView="tree" />
     </Box>
   );
 }

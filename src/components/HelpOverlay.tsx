@@ -1,7 +1,12 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import { useBeadsStore } from '../state/store';
+import { getTheme } from '../themes/themes';
 
 export function HelpOverlay() {
+  const currentTheme = useBeadsStore(state => state.currentTheme);
+  const theme = getTheme(currentTheme);
+
   return (
     <Box
       position="absolute"
@@ -13,63 +18,84 @@ export function HelpOverlay() {
       <Box
         flexDirection="column"
         borderStyle="double"
-        borderColor="cyan"
+        borderColor={theme.colors.primary}
         padding={2}
         backgroundColor="black"
       >
         <Box marginBottom={1}>
-          <Text bold color="cyan">BD TUI - Keyboard Shortcuts</Text>
+          <Text bold color={theme.colors.primary}>BD TUI - Keyboard Shortcuts</Text>
         </Box>
 
         <Box flexDirection="column" gap={0}>
-          <Text bold color="yellow">Navigation:</Text>
-          <Text>  ← / h          Move left (previous column)</Text>
-          <Text>  → / l          Move right (next column)</Text>
-          <Text>  ↑ / k          Move up (previous issue)</Text>
-          <Text>  ↓ / j          Move down (next issue)</Text>
+          <Text bold color={theme.colors.warning}>Navigation:</Text>
+          <Text>  <Text color={theme.colors.primary}>left/right / h/l</Text>  Move between columns</Text>
+          <Text>  <Text color={theme.colors.primary}>up/down / k/j</Text>    Move up/down in column</Text>
+          <Text>  <Text color={theme.colors.primary}>0</Text>               Jump to first issue</Text>
+          <Text>  <Text color={theme.colors.primary}>$ or G</Text>          Jump to last issue</Text>
+          <Text>  <Text color={theme.colors.primary}>: or g</Text>          Open command bar</Text>
         </Box>
 
         <Box flexDirection="column" gap={0} marginTop={1}>
-          <Text bold color="yellow">Views:</Text>
-          <Text>  1              Kanban board view</Text>
-          <Text>  2              Tree view (hierarchical)</Text>
-          <Text>  3              Dependency graph (ASCII art)</Text>
-          <Text>  4              Statistics & analytics dashboard</Text>
+          <Text bold color={theme.colors.warning}>Views:</Text>
+          <Text>  <Text color={theme.colors.primary}>1</Text>              Kanban board view</Text>
+          <Text>  <Text color={theme.colors.primary}>2</Text>              Tree view (hierarchical)</Text>
+          <Text>  <Text color={theme.colors.primary}>3</Text>              Dependency graph (ASCII art)</Text>
+          <Text>  <Text color={theme.colors.primary}>4</Text>              Statistics & analytics dashboard</Text>
         </Box>
 
         <Box flexDirection="column" gap={0} marginTop={1}>
-          <Text bold color="yellow">Search & Filter:</Text>
-          <Text>  /              Open search (search title, description, ID)</Text>
-          <Text>  f              Open filter panel (assignee, tags, priority, status)</Text>
-          <Text>  c              Clear all filters and search</Text>
-          <Text dimColor>  (Use ESC to close search/filter panels)</Text>
+          <Text bold color={theme.colors.warning}>Search & Filter:</Text>
+          <Text>  <Text color={theme.colors.primary}>/</Text>              Open search</Text>
+          <Text>  <Text color={theme.colors.primary}>f</Text>              Open filter panel</Text>
+          <Text>  <Text color={theme.colors.primary}>c</Text>              Clear all filters and search</Text>
+          <Text color={theme.colors.textDim}>  (Filters apply across all views including Stats)</Text>
         </Box>
 
         <Box flexDirection="column" gap={0} marginTop={1}>
-          <Text bold color="yellow">Actions:</Text>
-          <Text>  N              Create new issue (Shift+N)</Text>
-          <Text>  e              Edit selected issue</Text>
-          <Text>  x              Export/copy selected issue</Text>
-          <Text>  Enter / Space  Toggle detail panel (Kanban only)</Text>
-          <Text>  r              Refresh data</Text>
-          <Text>  n              Toggle notifications (sound + native)</Text>
+          <Text bold color={theme.colors.warning}>Actions:</Text>
+          <Text>  <Text color={theme.colors.primary}>N</Text>              Create new issue (Shift+N)</Text>
+          <Text>  <Text color={theme.colors.primary}>e</Text>              Edit selected issue</Text>
+          <Text>  <Text color={theme.colors.primary}>x</Text>              Export/copy selected issue</Text>
+          <Text>  <Text color={theme.colors.primary}>Enter / Space</Text>  Toggle detail panel</Text>
+          <Text>  <Text color={theme.colors.primary}>r</Text>              Refresh data</Text>
+          <Text>  <Text color={theme.colors.primary}>u</Text>              Undo (view history)</Text>
         </Box>
 
         <Box flexDirection="column" gap={0} marginTop={1}>
-          <Text bold color="yellow">Other:</Text>
-          <Text>  t              Change theme / color scheme</Text>
-          <Text>  ?              Toggle this help</Text>
-          <Text>  q / Ctrl+C     Quit</Text>
+          <Text bold color={theme.colors.warning}>Other:</Text>
+          <Text>  <Text color={theme.colors.primary}>t</Text>              Change theme / color scheme</Text>
+          <Text>  <Text color={theme.colors.primary}>n</Text>              Toggle notifications (sound + native)</Text>
+          <Text>  <Text color={theme.colors.primary}>?</Text>              Toggle this help</Text>
+          <Text>  <Text color={theme.colors.primary}>q / Ctrl+C</Text>     Quit</Text>
         </Box>
 
-        <Box flexDirection="column" gap={0} marginTop={1} borderTop borderColor="gray" paddingTop={1}>
-          <Text dimColor>Notifications alert you when:</Text>
-          <Text dimColor>  • Tasks are completed (status → closed)</Text>
-          <Text dimColor>  • Tasks become blocked</Text>
+        <Box flexDirection="column" gap={0} marginTop={1} borderTop borderColor={theme.colors.border} paddingTop={1}>
+          <Text bold color={theme.colors.warning}>Command Bar (: or g):</Text>
+          <Text>  <Text color={theme.colors.primary}>:5</Text>              Jump to page 5</Text>
+          <Text>  <Text color={theme.colors.primary}>:issue-id</Text>       Jump to issue by ID</Text>
+          <Text>  <Text color={theme.colors.primary}>:s o/i/b/c</Text>      Set status</Text>
+          <Text>  <Text color={theme.colors.primary}>:p 0-4</Text>          Set priority</Text>
+          <Text>  <Text color={theme.colors.primary}>:kanban/tree/graph/stats</Text>  Switch view</Text>
+          <Text>  <Text color={theme.colors.primary}>:theme name</Text>     Change theme</Text>
+          <Text>  <Text color={theme.colors.primary}>:new :edit :q</Text>   Create, edit, quit</Text>
+        </Box>
+
+        <Box flexDirection="column" gap={0} marginTop={1} borderTop borderColor={theme.colors.border} paddingTop={1}>
+          <Text bold color={theme.colors.warning}>Forms:</Text>
+          <Text color={theme.colors.textDim}>  Tab / Shift+Tab   Navigate between fields</Text>
+          <Text color={theme.colors.textDim}>  up/down           Change priority/status/type</Text>
+          <Text color={theme.colors.textDim}>  Enter             Submit (with confirmation)</Text>
+          <Text color={theme.colors.textDim}>  ESC               Cancel and return</Text>
+        </Box>
+
+        <Box flexDirection="column" gap={0} marginTop={1} borderTop borderColor={theme.colors.border} paddingTop={1}>
+          <Text color={theme.colors.textDim}>Notifications alert you when:</Text>
+          <Text color={theme.colors.textDim}>  - Tasks are completed (status changes to closed)</Text>
+          <Text color={theme.colors.textDim}>  - Tasks become blocked</Text>
         </Box>
 
         <Box marginTop={2} justifyContent="center">
-          <Text dimColor>Press ? to close</Text>
+          <Text color={theme.colors.textDim}>Press ? to close</Text>
         </Box>
       </Box>
     </Box>

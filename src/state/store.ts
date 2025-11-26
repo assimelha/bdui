@@ -1,12 +1,29 @@
 import { create } from 'zustand';
 import type { BeadsData, Issue } from '../types';
 import { detectStatusChanges, notifyStatusChange } from '../utils/notifications';
+import { LAYOUT } from '../utils/constants';
 
 type StatusKey = 'open' | 'closed' | 'in_progress' | 'blocked';
 
 interface ColumnState {
   selectedIndex: number;
   scrollOffset: number;
+}
+
+// Toast message for user feedback
+interface ToastMessage {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+  timestamp: number;
+}
+
+// Undo history entry
+interface UndoEntry {
+  action: string;
+  issueId: string;
+  previousData: Partial<Issue>;
+  timestamp: number;
 }
 
 interface BeadsStore {
@@ -32,9 +49,23 @@ interface BeadsStore {
   showFilter: boolean;
   showExportDialog: boolean;
   showThemeSelector: boolean;
+  showJumpToPage: boolean;
+  showConfirmDialog: boolean;
+  confirmDialogData: {
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null;
   currentTheme: string;
   searchQuery: string;
   notificationsEnabled: boolean;
+
+  // Toast messages for user feedback
+  toastMessage: ToastMessage | null;
+
+  // Undo history
+  undoHistory: UndoEntry[];
+  maxUndoHistory: number;
 
   filter: {
     assignee?: string;
@@ -55,6 +86,11 @@ interface BeadsStore {
   moveDown: () => void;
   moveLeft: () => void;
   moveRight: () => void;
+  jumpToFirst: () => void;
+  jumpToLast: () => void;
+  jumpToPage: (page: number) => void;
+  getTotalPages: () => number;
+  getCurrentPage: () => number;
   toggleHelp: () => void;
   toggleDetails: () => void;
   toggleNotifications: () => void;
@@ -62,6 +98,7 @@ interface BeadsStore {
   toggleFilter: () => void;
   toggleExportDialog: () => void;
   toggleThemeSelector: () => void;
+  toggleJumpToPage: () => void;
   setTheme: (theme: string) => void;
   clearFilters: () => void;
   setViewMode: (mode: 'kanban' | 'tree' | 'graph' | 'stats' | 'create-issue' | 'edit-issue') => void;
@@ -71,6 +108,20 @@ interface BeadsStore {
   setSearchQuery: (query: string) => void;
   getSelectedIssue: () => Issue | null;
   getStatusKey: () => StatusKey;
+  selectIssueById: (id: string) => boolean;
+
+  // Toast actions
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  clearToast: () => void;
+
+  // Confirmation dialog actions
+  showConfirm: (title: string, message: string, onConfirm: () => void) => void;
+  hideConfirm: () => void;
+
+  // Undo actions
+  addToUndoHistory: (entry: Omit<UndoEntry, 'timestamp'>) => void;
+  undo: () => UndoEntry | null;
+  clearUndoHistory: () => void;
 }
 
 const STATUS_KEYS: StatusKey[] = ['open', 'in_progress', 'blocked', 'closed'];
@@ -119,26 +170,25 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   showFilter: false,
   showExportDialog: false,
   showThemeSelector: false,
+  showJumpToPage: false,
+  showConfirmDialog: false,
+  confirmDialogData: null,
   currentTheme: 'default',
   searchQuery: '',
   notificationsEnabled: true, // Enabled by default
 
+  // Toast messages
+  toastMessage: null,
+
+  // Undo history
+  undoHistory: [],
+  maxUndoHistory: 10,
+
   filter: {},
 
   setTerminalSize: (width, height) => {
-    // Calculate itemsPerPage based on available height
-    // More conservative calculation to prevent overflow:
-    // Header (title + stats): 4 lines
-    // Footer: 3 lines
-    // Column header: 3 lines
-    // Scroll indicators (when shown): 2 lines
-    // Pagination info (when shown): 2 lines
-    // Margins and padding: 3 lines
-    // Total overhead: ~17 lines
-    // Each issue card: 8 lines (card height + gap)
-
-    const uiOverhead = 17;
-    const issueCardHeight = 8;
+    const uiOverhead = LAYOUT.uiOverhead;
+    const issueCardHeight = LAYOUT.issueCardHeight;
     const availableHeight = Math.max(height - uiOverhead, issueCardHeight);
     const itemsPerPage = Math.max(Math.floor(availableHeight / issueCardHeight), 1);
 
@@ -238,6 +288,53 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
     return issues[selectedIndex] || null;
   },
 
+  selectIssueById: (id: string) => {
+    const { data, columnStates, itemsPerPage } = get();
+    const searchId = id.toLowerCase();
+
+    // Search through all status columns
+    for (let colIndex = 0; colIndex < STATUS_KEYS.length; colIndex++) {
+      const statusKey = STATUS_KEYS[colIndex];
+      const issues = data.byStatus[statusKey] || [];
+
+      const issueIndex = issues.findIndex(issue =>
+        issue.id.toLowerCase() === searchId ||
+        issue.id.toLowerCase().includes(searchId)
+      );
+
+      if (issueIndex !== -1) {
+        // Found it - update selection
+        const newOffset = Math.floor(issueIndex / itemsPerPage) * itemsPerPage;
+        set({
+          selectedColumn: colIndex,
+          columnStates: {
+            ...columnStates,
+            [statusKey]: {
+              selectedIndex: issueIndex,
+              scrollOffset: newOffset,
+            },
+          },
+        });
+        return true;
+      }
+    }
+    return false;
+  },
+
+  getTotalPages: () => {
+    const { data, selectedColumn, itemsPerPage } = get();
+    const statusKey = STATUS_KEYS[selectedColumn];
+    const issues = data.byStatus[statusKey] || [];
+    return Math.ceil(issues.length / itemsPerPage) || 1;
+  },
+
+  getCurrentPage: () => {
+    const { selectedColumn, columnStates, itemsPerPage } = get();
+    const statusKey = STATUS_KEYS[selectedColumn];
+    const scrollOffset = columnStates[statusKey].scrollOffset;
+    return Math.floor(scrollOffset / itemsPerPage) + 1;
+  },
+
   moveUp: () => {
     const { selectedColumn, columnStates, itemsPerPage } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
@@ -305,6 +402,62 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
     }
   },
 
+  jumpToFirst: () => {
+    const { selectedColumn, columnStates } = get();
+    const statusKey = STATUS_KEYS[selectedColumn];
+
+    set({
+      columnStates: {
+        ...columnStates,
+        [statusKey]: {
+          selectedIndex: 0,
+          scrollOffset: 0,
+        },
+      },
+    });
+  },
+
+  jumpToLast: () => {
+    const { data, selectedColumn, columnStates, itemsPerPage } = get();
+    const statusKey = STATUS_KEYS[selectedColumn];
+    const issues = data.byStatus[statusKey] || [];
+    const lastIndex = Math.max(0, issues.length - 1);
+    const newOffset = Math.max(0, lastIndex - itemsPerPage + 1);
+
+    set({
+      columnStates: {
+        ...columnStates,
+        [statusKey]: {
+          selectedIndex: lastIndex,
+          scrollOffset: newOffset,
+        },
+      },
+    });
+  },
+
+  jumpToPage: (page: number) => {
+    const { data, selectedColumn, columnStates, itemsPerPage } = get();
+    const statusKey = STATUS_KEYS[selectedColumn];
+    const issues = data.byStatus[statusKey] || [];
+    const totalPages = Math.ceil(issues.length / itemsPerPage) || 1;
+
+    // Clamp page to valid range
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    const newOffset = (validPage - 1) * itemsPerPage;
+    const newIndex = Math.min(newOffset, issues.length - 1);
+
+    set({
+      columnStates: {
+        ...columnStates,
+        [statusKey]: {
+          selectedIndex: Math.max(0, newIndex),
+          scrollOffset: newOffset,
+        },
+      },
+      showJumpToPage: false,
+    });
+  },
+
   toggleHelp: () => {
     set(state => ({ showHelp: !state.showHelp }));
   },
@@ -350,6 +503,17 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
       showSearch: state.showThemeSelector ? state.showSearch : false,
       showFilter: state.showThemeSelector ? state.showFilter : false,
       showExportDialog: state.showThemeSelector ? state.showExportDialog : false,
+    }));
+  },
+
+  toggleJumpToPage: () => {
+    set(state => ({
+      showJumpToPage: !state.showJumpToPage,
+      // Close other modals
+      showSearch: false,
+      showFilter: false,
+      showExportDialog: false,
+      showThemeSelector: false,
     }));
   },
 
@@ -402,4 +566,65 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   setSearchQuery: (query) => set({ searchQuery: query }),
+
+  // Toast actions
+  showToast: (message, type) => {
+    const toast: ToastMessage = {
+      id: Date.now().toString(),
+      message,
+      type,
+      timestamp: Date.now(),
+    };
+    set({ toastMessage: toast });
+
+    // Auto-clear toast after 3 seconds
+    setTimeout(() => {
+      const state = get();
+      if (state.toastMessage?.id === toast.id) {
+        set({ toastMessage: null });
+      }
+    }, 3000);
+  },
+
+  clearToast: () => set({ toastMessage: null }),
+
+  // Confirmation dialog actions
+  showConfirm: (title, message, onConfirm) => {
+    set({
+      showConfirmDialog: true,
+      confirmDialogData: { title, message, onConfirm },
+    });
+  },
+
+  hideConfirm: () => {
+    set({
+      showConfirmDialog: false,
+      confirmDialogData: null,
+    });
+  },
+
+  // Undo actions
+  addToUndoHistory: (entry) => {
+    const state = get();
+    const newEntry: UndoEntry = {
+      ...entry,
+      timestamp: Date.now(),
+    };
+    const newHistory = [newEntry, ...state.undoHistory].slice(0, state.maxUndoHistory);
+    set({ undoHistory: newHistory });
+  },
+
+  undo: () => {
+    const state = get();
+    if (state.undoHistory.length === 0) return null;
+
+    const [entry, ...rest] = state.undoHistory;
+    set({ undoHistory: rest });
+    return entry;
+  },
+
+  clearUndoHistory: () => set({ undoHistory: [] }),
 }));
+
+export { STATUS_KEYS };
+export type { StatusKey, ToastMessage, UndoEntry };

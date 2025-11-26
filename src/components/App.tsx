@@ -4,6 +4,7 @@ import { useBeadsStore } from '../state/store';
 import { Board } from './Board';
 import { BeadsWatcher } from '../bd/watcher';
 import { loadBeads, findBeadsDir } from '../bd/parser';
+import { getTheme } from '../themes/themes';
 
 export function App() {
   const { exit } = useApp();
@@ -11,6 +12,8 @@ export function App() {
   const setData = useBeadsStore(state => state.setData);
   const setTerminalSize = useBeadsStore(state => state.setTerminalSize);
   const setReloadCallback = useBeadsStore(state => state.setReloadCallback);
+  const currentTheme = useBeadsStore(state => state.currentTheme);
+  const theme = getTheme(currentTheme);
   const [beadsPath, setBeadsPath] = useState<string | null>(null);
   const [watcher, setWatcher] = useState<BeadsWatcher | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,11 +90,14 @@ export function App() {
   const moveDown = useBeadsStore(state => state.moveDown);
   const moveLeft = useBeadsStore(state => state.moveLeft);
   const moveRight = useBeadsStore(state => state.moveRight);
+  const jumpToFirst = useBeadsStore(state => state.jumpToFirst);
+  const jumpToLast = useBeadsStore(state => state.jumpToLast);
   const toggleHelp = useBeadsStore(state => state.toggleHelp);
   const toggleDetails = useBeadsStore(state => state.toggleDetails);
   const toggleNotifications = useBeadsStore(state => state.toggleNotifications);
   const toggleSearch = useBeadsStore(state => state.toggleSearch);
   const toggleFilter = useBeadsStore(state => state.toggleFilter);
+  const toggleJumpToPage = useBeadsStore(state => state.toggleJumpToPage);
   const navigateToCreateIssue = useBeadsStore(state => state.navigateToCreateIssue);
   const navigateToEditIssue = useBeadsStore(state => state.navigateToEditIssue);
   const returnToPreviousView = useBeadsStore(state => state.returnToPreviousView);
@@ -104,10 +110,18 @@ export function App() {
   const showFilter = useBeadsStore(state => state.showFilter);
   const showExportDialog = useBeadsStore(state => state.showExportDialog);
   const showThemeSelector = useBeadsStore(state => state.showThemeSelector);
+  const showJumpToPage = useBeadsStore(state => state.showJumpToPage);
+  const showConfirmDialog = useBeadsStore(state => state.showConfirmDialog);
+  const showToast = useBeadsStore(state => state.showToast);
+  const undo = useBeadsStore(state => state.undo);
+  const reloadCallback = useBeadsStore(state => state.reloadCallback);
 
   // Handle keyboard input
   useInput((input, key) => {
     const inFormView = viewMode === 'create-issue' || viewMode === 'edit-issue';
+
+    // Don't handle input when confirm dialog is open
+    if (showConfirmDialog) return;
 
     // Handle 'q' key - disabled in forms, quits directly otherwise
     if (input === 'q') {
@@ -118,8 +132,6 @@ export function App() {
       // Not in form view, quit directly
       exit();
     }
-
-    // Ctrl+C always quits (handled by Ink/system)
 
     // Always allow help
     if (input === '?') {
@@ -135,9 +147,8 @@ export function App() {
       return;
     }
 
-    // If search, filter, export dialog, or theme selector are active, let those components handle input
-    // (they handle ESC to close themselves)
-    if (showSearch || showFilter || showExportDialog || showThemeSelector) {
+    // If modals are active, let those components handle input
+    if (showSearch || showFilter || showExportDialog || showThemeSelector || showJumpToPage) {
       return;
     }
 
@@ -145,6 +156,19 @@ export function App() {
     if (input === 'r') {
       if (watcher) {
         watcher.reload();
+        showToast('Data refreshed', 'info');
+      }
+    }
+
+    // Undo (Ctrl+Z or u)
+    if ((key.ctrl && input === 'z') || input === 'u') {
+      const entry = undo();
+      if (entry) {
+        showToast(`Undo available: ${entry.action} on ${entry.issueId}`, 'info');
+        // Note: Actual undo would require calling bd CLI to revert
+        // For now, just show the notification
+      } else {
+        showToast('Nothing to undo', 'info');
       }
     }
 
@@ -163,6 +187,19 @@ export function App() {
     // Clear filters
     if (input === 'c') {
       clearFilters();
+      showToast('Filters cleared', 'info');
+      return;
+    }
+
+    // Command bar (: or g)
+    if (input === ':' || input === 'g') {
+      toggleJumpToPage();
+      return;
+    }
+
+    // Jump to first (Home or gg)
+    if (input === 'G') {
+      jumpToLast();
       return;
     }
 
@@ -214,7 +251,7 @@ export function App() {
       setViewMode('stats');
     }
 
-    // Navigation - Arrow keys
+    // Navigation - Arrow keys and vim keys
     if (key.upArrow || input === 'k') {
       moveUp();
     }
@@ -227,12 +264,22 @@ export function App() {
     if (key.rightArrow || input === 'l') {
       moveRight();
     }
+
+    // Home/End for first/last
+    // Note: Ink doesn't have built-in home/end key detection,
+    // so we use 0 and $ as vim alternatives
+    if (input === '0') {
+      jumpToFirst();
+    }
+    if (input === '$') {
+      jumpToLast();
+    }
   });
 
   if (loading) {
     return (
       <Box padding={1}>
-        <Text color="cyan">Loading beads...</Text>
+        <Text color={theme.colors.primary}>Loading beads...</Text>
       </Box>
     );
   }
@@ -240,9 +287,9 @@ export function App() {
   if (error) {
     return (
       <Box flexDirection="column" padding={1}>
-        <Text color="red" bold>Error:</Text>
-        <Text color="red">{error}</Text>
-        <Text dimColor marginTop={1}>
+        <Text color={theme.colors.error} bold>Error:</Text>
+        <Text color={theme.colors.error}>{error}</Text>
+        <Text color={theme.colors.textDim} marginTop={1}>
           Make sure you're in a directory with a .beads/ folder
         </Text>
       </Box>
