@@ -289,9 +289,11 @@ export function App() {
       <Box flexDirection="column" padding={1}>
         <Text color={theme.colors.error} bold>Error:</Text>
         <Text color={theme.colors.error}>{error}</Text>
-        <Text color={theme.colors.textDim} marginTop={1}>
+        <Box marginTop={1}>
+          <Text color={theme.colors.textDim}>
           Make sure you're in a directory with a .beads/ folder
-        </Text>
+          </Text>
+        </Box>
       </Box>
     );
   }

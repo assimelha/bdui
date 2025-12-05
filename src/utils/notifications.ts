@@ -50,13 +50,9 @@ export function showCompletionNotification(issue: Issue) {
   notifier.notify({
     title: '✅ Task Completed!',
     message: issue.title,
-    subtitle: `${issue.id} - Priority P${issue.priority}`,
-    sound: true, // macOS only
-    timeout: 5,
+    
     wait: false,
     icon, // Cross-platform icon support
-    contentImage: icon, // macOS specific for better display
-    appIcon: icon, // macOS app icon
   });
 }
 
@@ -69,13 +65,9 @@ export function showBlockedNotification(issue: Issue, blockedBy: string[]) {
   notifier.notify({
     title: '🚫 Task Blocked',
     message: issue.title,
-    subtitle: `Blocked by ${blockedBy.length} issue(s)`,
-    sound: false,
-    timeout: 5,
+    
     wait: false,
     icon, // Cross-platform icon support
-    contentImage: icon, // macOS specific for better display
-    appIcon: icon, // macOS app icon
   });
 }
 

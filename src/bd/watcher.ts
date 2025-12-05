@@ -1,7 +1,7 @@
 import { watch, type FSWatcher } from 'fs';
 import { join } from 'path';
-import type { BeadsData } from '../types';
-import { loadBeads } from './parser';
+import type { BeadsData, DataSource } from '../types';
+import { loadBeads, getDataSource } from './parser';
 
 export type UpdateCallback = (data: BeadsData) => void;
 
@@ -13,6 +13,7 @@ export class BeadsWatcher {
   private callbacks: Set<UpdateCallback> = new Set();
   private beadsPath: string;
   private debounceTimeout: Timer | null = null;
+  private dataSource: DataSource | null = null;
 
   constructor(beadsPath: string) {
     this.beadsPath = beadsPath;
@@ -24,10 +25,19 @@ export class BeadsWatcher {
   start() {
     if (this.watcher) return;
 
-    const dbPath = join(this.beadsPath, 'beads.db');
+    // Determine which file to watch
+    this.dataSource = getDataSource(this.beadsPath);
+
+    if (!this.dataSource) {
+      console.error('No data source found to watch');
+      return;
+    }
+
+    const filename = this.dataSource === 'sqlite' ? 'beads.db' : 'issues.jsonl';
+    const filePath = join(this.beadsPath, filename);
 
     this.watcher = watch(
-      dbPath,
+      filePath,
       { recursive: false },
       (eventType, filename) => {
         this.handleChange();
@@ -96,5 +106,12 @@ export class BeadsWatcher {
   async reload() {
     const data = await loadBeads(this.beadsPath);
     this.notifySubscribers(data);
+  }
+
+  /**
+   * Get the current data source being watched
+   */
+  getDataSource(): DataSource | null {
+    return this.dataSource;
   }
 }

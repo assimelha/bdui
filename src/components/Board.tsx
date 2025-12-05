@@ -190,8 +190,8 @@ function KanbanView() {
       {showExportDialog && selectedIssue && (
         <Box
           position="absolute"
-          top={Math.floor(terminalHeight / 2) - 10}
-          left={Math.floor(terminalWidth / 2) - 35}
+          marginTop={Math.floor(terminalHeight / 2) - 10}
+          marginLeft={Math.floor(terminalWidth / 2) - 35}
         >
           <ExportDialog
             issue={selectedIssue}
@@ -204,8 +204,8 @@ function KanbanView() {
       {showThemeSelector && (
         <Box
           position="absolute"
-          top={Math.floor(terminalHeight / 2) - 10}
-          left={Math.floor(terminalWidth / 2) - 30}
+          marginTop={Math.floor(terminalHeight / 2) - 10}
+          marginLeft={Math.floor(terminalWidth / 2) - 30}
         >
           <ThemeSelector onClose={toggleThemeSelector} />
         </Box>
@@ -252,9 +252,11 @@ export function Board() {
         <Text color={theme.colors.textDim}>
           Current width: {terminalWidth} columns
         </Text>
-        <Text color={theme.colors.textDim} marginTop={1}>
+        <Box marginTop={1}>
+          <Text color={theme.colors.textDim}>
           Please resize your terminal window.
-        </Text>
+          </Text>
+        </Box>
       </Box>
     );
   }

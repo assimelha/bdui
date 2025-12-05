@@ -142,6 +142,7 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
       closed: 0,
       blocked: 0,
     },
+    dataSource: 'sqlite' as const,
   },
 
   previousIssues: new Map(),
