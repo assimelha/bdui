@@ -1,12 +1,35 @@
 import { Database } from 'bun:sqlite';
 import { stat } from 'fs/promises';
 import { join } from 'path';
-import type { Issue, BeadsData } from '../types';
+import { existsSync } from 'fs';
+import { loadBeadsFromJsonl } from './jsonl-parser';
+import type { Issue, BeadsData, DataSource } from '../types';
+
+/**
+ * Determine which data source is available in the .beads directory
+ * Returns 'sqlite' if beads.db exists, 'jsonl' if only issues.jsonl exists
+ */
+export function getDataSource(beadsPath: string): DataSource | null {
+  const dbPath = join(beadsPath, 'beads.db');
+  const jsonlPath = join(beadsPath, 'issues.jsonl');
+
+  // Check SQLite first (preferred)
+  if (existsSync(dbPath)) {
+    return 'sqlite';
+  }
+
+  // Check JSONL as fallback
+  if (existsSync(jsonlPath)) {
+    return 'jsonl';
+  }
+
+  return null;
+}
 
 /**
  * Read all issues from bd SQLite database
  */
-export async function loadBeads(beadsPath: string = '.beads'): Promise<BeadsData> {
+async function loadBeadsFromSqlite(beadsPath: string = '.beads'): Promise<BeadsData> {
   const dbPath = join(beadsPath, 'beads.db');
 
   try {
@@ -130,7 +153,13 @@ export async function loadBeads(beadsPath: string = '.beads'): Promise<BeadsData
 
     db.close();
 
-    return { issues, byStatus, byId, stats };
+    return { 
+      issues, 
+      byStatus, 
+      byId, 
+      stats,
+      dataSource: 'sqlite' as const
+    };
   } catch (error) {
     console.error('Error loading beads from database:', error);
     return {
@@ -138,7 +167,23 @@ export async function loadBeads(beadsPath: string = '.beads'): Promise<BeadsData
       byStatus: { 'open': [], 'closed': [], 'in_progress': [], 'blocked': [] },
       byId: new Map(),
       stats: { total: 0, open: 0, closed: 0, blocked: 0 },
+      dataSource: 'sqlite' as const
     };
+  }
+}
+
+/**
+ * Read all issues from bd data store (SQLite preferred, JSONL fallback)
+ */
+export async function loadBeads(beadsPath: string = '.beads'): Promise<BeadsData> {
+  const source = getDataSource(beadsPath);
+
+  if (source === 'sqlite') {
+    return loadBeadsFromSqlite(beadsPath);
+  } else if (source === 'jsonl') {
+    return loadBeadsFromJsonl(beadsPath);
+  } else {
+    throw new Error(`No data source found at ${beadsPath} (checked beads.db and issues.jsonl)`);
   }
 }
 
@@ -154,7 +199,11 @@ export async function findBeadsDir(startPath: string = process.cwd()): Promise<s
     try {
       const stats = await stat(beadsPath);
       if (stats.isDirectory()) {
-        return beadsPath;
+        // Verify at least one data source exists
+        const source = getDataSource(beadsPath);
+        if (source) {
+          return beadsPath;
+        }
       }
     } catch {
       // Directory doesn't exist, continue

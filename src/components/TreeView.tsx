@@ -102,7 +102,7 @@ export function TreeView({ data, terminalHeight }: TreeViewProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
-  const toggleEditForm = useBeadsStore(state => state.toggleEditForm);
+  const navigateToEditIssue = useBeadsStore(state => state.navigateToEditIssue);
 
   const tree = useMemo(() => buildTree(data), [data]);
   const flatNodes = useMemo(() => flattenTree(tree), [tree]);
@@ -142,7 +142,7 @@ export function TreeView({ data, terminalHeight }: TreeViewProps) {
 
     // Edit selected issue
     if (input === 'e') {
-      toggleEditForm();
+      navigateToEditIssue();
     }
   });
 

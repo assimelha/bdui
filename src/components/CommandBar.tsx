@@ -112,7 +112,7 @@ export function CommandBar() {
           return { success: false, message: 'No issue selected' };
         }
         const statusArg = args[0];
-        const statusMap: Record<string, string> = {
+        const statusMap: Record<string, 'open' | 'closed' | 'in_progress' | 'blocked'> = {
           'o': 'open', 'open': 'open',
           'i': 'in_progress', 'in_progress': 'in_progress', 'ip': 'in_progress',
           'b': 'blocked', 'blocked': 'blocked',
@@ -121,7 +121,7 @@ export function CommandBar() {
         const newStatus = statusMap[statusArg];
         if (newStatus) {
           try {
-            await updateIssue(selectedIssue.id, { status: newStatus });
+            await updateIssue({ id: selectedIssue.id, status: newStatus });
             if (reloadCallback) reloadCallback();
             return { success: true, message: `Status → ${newStatus}` };
           } catch (e) {
@@ -139,7 +139,7 @@ export function CommandBar() {
         const prioArg = parseInt(args[0], 10);
         if (!isNaN(prioArg) && prioArg >= 0 && prioArg <= 4) {
           try {
-            await updateIssue(selectedIssue.id, { priority: prioArg });
+            await updateIssue({ id: selectedIssue.id, priority: prioArg });
             if (reloadCallback) reloadCallback();
             return { success: true, message: `Priority → P${prioArg}` };
           } catch (e) {

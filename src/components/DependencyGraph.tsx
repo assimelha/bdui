@@ -81,7 +81,7 @@ export function DependencyGraph({ data, terminalWidth, terminalHeight }: Depende
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [showDetails, setShowDetails] = useState(false);
-  const toggleEditForm = useBeadsStore(state => state.toggleEditForm);
+  const navigateToEditIssue = useBeadsStore(state => state.navigateToEditIssue);
 
   const levels = useMemo(() => buildDependencyLevels(data), [data]);
   const flatNodes = useMemo(() => levels.flat(), [levels]);
@@ -121,7 +121,7 @@ export function DependencyGraph({ data, terminalWidth, terminalHeight }: Depende
 
     // Edit selected issue
     if (input === 'e') {
-      toggleEditForm();
+      navigateToEditIssue();
     }
   });
 
