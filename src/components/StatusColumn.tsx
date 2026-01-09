@@ -11,7 +11,7 @@ interface StatusColumnProps {
   title: string;
   issues: Issue[];
   isActive: boolean;
-  selectedIndex: number;
+  selectedIssueId: string | null;
   scrollOffset: number;
   itemsPerPage: number;
   statusKey: string;
@@ -22,7 +22,7 @@ export function StatusColumn({
   title,
   issues,
   isActive,
-  selectedIndex,
+  selectedIssueId,
   scrollOffset,
   itemsPerPage,
   statusKey,
@@ -30,6 +30,9 @@ export function StatusColumn({
 }: StatusColumnProps) {
   const currentTheme = useBeadsStore(state => state.currentTheme);
   const theme = getTheme(currentTheme);
+
+  // Find the visual index of the selected issue (its position in the sorted/filtered list)
+  const selectedIndex = selectedIssueId ? issues.findIndex(i => i.id === selectedIssueId) : -1;
 
   const totalIssues = issues.length;
   const visibleIssues = issues.slice(scrollOffset, scrollOffset + itemsPerPage);

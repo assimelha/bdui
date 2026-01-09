@@ -43,6 +43,7 @@ function KanbanView() {
   const searchQuery = useBeadsStore(state => state.searchQuery);
   const filter = useBeadsStore(state => state.filter);
   const sortConfig = useBeadsStore(state => state.sortConfig);
+  const sortedByStatus = useBeadsStore(state => state.sortedByStatus);
   const viewMode = useBeadsStore(state => state.viewMode);
   const currentTheme = useBeadsStore(state => state.currentTheme);
   const theme = getTheme(currentTheme);
@@ -85,15 +86,21 @@ function KanbanView() {
     };
   }, [data, searchQuery, filter, getFilteredIssues, filtersActive]);
 
-  // Apply sorting to each column
+  // Apply sorting to each column (handles both normal and filtered views)
   const columnData = useMemo(() => {
+    // If no filters, use pre-sorted data from store
+    if (!filtersActive) {
+      return sortedByStatus;
+    }
+
+    // If filters are active, sort the filtered data
     return {
       open: sortIssues(filteredData.byStatus.open, sortConfig.open.sortBy, sortConfig.open.sortOrder),
       in_progress: sortIssues(filteredData.byStatus.in_progress, sortConfig.in_progress.sortBy, sortConfig.in_progress.sortOrder),
       blocked: sortIssues(filteredData.byStatus.blocked, sortConfig.blocked.sortBy, sortConfig.blocked.sortOrder),
       closed: sortIssues(filteredData.byStatus.closed, sortConfig.closed.sortBy, sortConfig.closed.sortOrder),
     };
-  }, [filteredData, sortConfig]);
+  }, [filtersActive, sortedByStatus, filteredData, sortConfig]);
 
   // Responsive layout calculations
   const COLUMN_WIDTH = LAYOUT.columnWidth;
@@ -168,7 +175,7 @@ function KanbanView() {
                 title={title}
                 issues={columnData[key] || []}
                 isActive={selectedColumn === idx}
-                selectedIndex={columnState.selectedIndex}
+                selectedIssueId={columnState.selectedIssueId}
                 scrollOffset={columnState.scrollOffset}
                 itemsPerPage={itemsPerPage}
                 statusKey={key}

@@ -3,11 +3,12 @@ import type { BeadsData, Issue } from '../types';
 import { detectStatusChanges, notifyStatusChange } from '../utils/notifications';
 import { LAYOUT, DEFAULT_SORT_CONFIG, type SortConfig, type SortField, type SortOrder } from '../utils/constants';
 import { loadConfig, saveSortConfig } from '../utils/persistence';
+import { sortIssues } from '../utils/sorting';
 
 type StatusKey = 'open' | 'closed' | 'in_progress' | 'blocked';
 
 interface ColumnState {
-  selectedIndex: number;
+  selectedIssueId: string | null;  // Store issue ID instead of index for sorting-independent selection
   scrollOffset: number;
 }
 
@@ -77,6 +78,7 @@ interface BeadsStore {
 
   // Sort configuration per column
   sortConfig: SortConfig;
+  sortedByStatus: Record<StatusKey, Issue[]>; // Sorted issues per column for navigation
 
   // Actions
   setData: (data: BeadsData) => void;
@@ -134,6 +136,16 @@ interface BeadsStore {
 
 const STATUS_KEYS: StatusKey[] = ['open', 'in_progress', 'blocked', 'closed'];
 
+// Helper function to compute sorted data based on current sort config
+function computeSortedByStatus(data: BeadsData, sortConfig: SortConfig): Record<StatusKey, Issue[]> {
+  return {
+    open: sortIssues(data.byStatus.open, sortConfig.open.sortBy, sortConfig.open.sortOrder),
+    in_progress: sortIssues(data.byStatus.in_progress, sortConfig.in_progress.sortBy, sortConfig.in_progress.sortOrder),
+    blocked: sortIssues(data.byStatus.blocked, sortConfig.blocked.sortBy, sortConfig.blocked.sortOrder),
+    closed: sortIssues(data.byStatus.closed, sortConfig.closed.sortBy, sortConfig.closed.sortOrder),
+  };
+}
+
 export const useBeadsStore = create<BeadsStore>((set, get) => ({
   data: {
     issues: [],
@@ -162,10 +174,10 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   // Navigation state - per column
   selectedColumn: 0,
   columnStates: {
-    'open': { selectedIndex: 0, scrollOffset: 0 },
-    'in_progress': { selectedIndex: 0, scrollOffset: 0 },
-    'blocked': { selectedIndex: 0, scrollOffset: 0 },
-    'closed': { selectedIndex: 0, scrollOffset: 0 },
+    'open': { selectedIssueId: null, scrollOffset: 0 },
+    'in_progress': { selectedIssueId: null, scrollOffset: 0 },
+    'blocked': { selectedIssueId: null, scrollOffset: 0 },
+    'closed': { selectedIssueId: null, scrollOffset: 0 },
   },
   itemsPerPage: 10, // Will be recalculated based on terminal height
 
@@ -195,6 +207,12 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   filter: {},
 
   sortConfig: loadConfig().sortConfig,
+  sortedByStatus: {
+    open: [],
+    in_progress: [],
+    blocked: [],
+    closed: [],
+  },
 
   setTerminalSize: (width, height) => {
     const uiOverhead = LAYOUT.uiOverhead;
@@ -220,15 +238,20 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
       }
     }
 
-    // Validate and reset column states if needed
+    // Compute sorted data
+    const sortedByStatus = computeSortedByStatus(data, state.sortConfig);
+
+    // Validate and reset column states if needed (using sorted data)
     const newColumnStates = { ...state.columnStates };
     for (const statusKey of STATUS_KEYS) {
-      const issuesInColumn = data.byStatus[statusKey]?.length || 0;
+      const issuesInColumn = sortedByStatus[statusKey] || [];
       const currentState = newColumnStates[statusKey];
 
-      if (currentState.selectedIndex >= issuesInColumn) {
+      // If no issue is selected, select the first one
+      // Or if the selected issue no longer exists in this column, select the first one
+      if (!currentState.selectedIssueId || !issuesInColumn.find(i => i.id === currentState.selectedIssueId)) {
         newColumnStates[statusKey] = {
-          selectedIndex: Math.max(0, issuesInColumn - 1),
+          selectedIssueId: issuesInColumn.length > 0 ? issuesInColumn[0].id : null,
           scrollOffset: 0,
         };
       }
@@ -237,6 +260,7 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
     // Update state
     set({
       data,
+      sortedByStatus,
       previousIssues: new Map(data.byId), // Clone for next comparison
       columnStates: newColumnStates,
     });
@@ -293,34 +317,36 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   getSelectedIssue: () => {
     const { data, selectedColumn, columnStates } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
-    const issues = data.byStatus[statusKey] || [];
-    const selectedIndex = columnStates[statusKey].selectedIndex;
-    return issues[selectedIndex] || null;
+    const selectedIssueId = columnStates[statusKey].selectedIssueId;
+
+    if (!selectedIssueId) return null;
+    return data.byId.get(selectedIssueId) || null;
   },
 
   selectIssueById: (id: string) => {
-    const { data, columnStates, itemsPerPage } = get();
+    const { sortedByStatus, columnStates, itemsPerPage } = get();
     const searchId = id.toLowerCase();
 
     // Search through all status columns
     for (let colIndex = 0; colIndex < STATUS_KEYS.length; colIndex++) {
       const statusKey = STATUS_KEYS[colIndex];
-      const issues = data.byStatus[statusKey] || [];
+      const issues = sortedByStatus[statusKey] || [];
 
-      const issueIndex = issues.findIndex(issue =>
+      const issue = issues.find(issue =>
         issue.id.toLowerCase() === searchId ||
         issue.id.toLowerCase().includes(searchId)
       );
 
-      if (issueIndex !== -1) {
-        // Found it - update selection
+      if (issue) {
+        // Found it - update selection with issue ID and scroll position
+        const issueIndex = issues.indexOf(issue);
         const newOffset = Math.floor(issueIndex / itemsPerPage) * itemsPerPage;
         set({
           selectedColumn: colIndex,
           columnStates: {
             ...columnStates,
             [statusKey]: {
-              selectedIndex: issueIndex,
+              selectedIssueId: issue.id,
               scrollOffset: newOffset,
             },
           },
@@ -332,9 +358,9 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   getTotalPages: () => {
-    const { data, selectedColumn, itemsPerPage } = get();
+    const { sortedByStatus, selectedColumn, itemsPerPage } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
-    const issues = data.byStatus[statusKey] || [];
+    const issues = sortedByStatus[statusKey] || [];
     return Math.ceil(issues.length / itemsPerPage) || 1;
   },
 
@@ -346,12 +372,17 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   moveUp: () => {
-    const { selectedColumn, columnStates, itemsPerPage } = get();
+    const { sortedByStatus, selectedColumn, columnStates, itemsPerPage } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
+    const issues = sortedByStatus[statusKey] || [];
     const currentState = columnStates[statusKey];
 
-    if (currentState.selectedIndex > 0) {
-      const newIndex = currentState.selectedIndex - 1;
+    // Find the index of currently selected issue
+    const currentIndex = issues.findIndex(i => i.id === currentState.selectedIssueId);
+
+    if (currentIndex > 0) {
+      const newIndex = currentIndex - 1;
+      const newIssue = issues[newIndex];
       let newOffset = currentState.scrollOffset;
 
       // Scroll up if needed
@@ -363,7 +394,7 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
         columnStates: {
           ...columnStates,
           [statusKey]: {
-            selectedIndex: newIndex,
+            selectedIssueId: newIssue.id,
             scrollOffset: newOffset,
           },
         },
@@ -372,13 +403,17 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   moveDown: () => {
-    const { data, selectedColumn, columnStates, itemsPerPage } = get();
+    const { sortedByStatus, selectedColumn, columnStates, itemsPerPage } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
-    const issues = data.byStatus[statusKey] || [];
+    const issues = sortedByStatus[statusKey] || [];
     const currentState = columnStates[statusKey];
 
-    if (currentState.selectedIndex < issues.length - 1) {
-      const newIndex = currentState.selectedIndex + 1;
+    // Find the index of currently selected issue
+    const currentIndex = issues.findIndex(i => i.id === currentState.selectedIssueId);
+
+    if (currentIndex < issues.length - 1) {
+      const newIndex = currentIndex + 1;
+      const newIssue = issues[newIndex];
       let newOffset = currentState.scrollOffset;
 
       // Scroll down if needed
@@ -390,7 +425,7 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
         columnStates: {
           ...columnStates,
           [statusKey]: {
-            selectedIndex: newIndex,
+            selectedIssueId: newIssue.id,
             scrollOffset: newOffset,
           },
         },
@@ -413,14 +448,15 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   jumpToFirst: () => {
-    const { selectedColumn, columnStates } = get();
+    const { sortedByStatus, selectedColumn, columnStates } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
+    const issues = sortedByStatus[statusKey] || [];
 
     set({
       columnStates: {
         ...columnStates,
         [statusKey]: {
-          selectedIndex: 0,
+          selectedIssueId: issues.length > 0 ? issues[0].id : null,
           scrollOffset: 0,
         },
       },
@@ -428,9 +464,9 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   jumpToLast: () => {
-    const { data, selectedColumn, columnStates, itemsPerPage } = get();
+    const { sortedByStatus, selectedColumn, columnStates, itemsPerPage } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
-    const issues = data.byStatus[statusKey] || [];
+    const issues = sortedByStatus[statusKey] || [];
     const lastIndex = Math.max(0, issues.length - 1);
     const newOffset = Math.max(0, lastIndex - itemsPerPage + 1);
 
@@ -438,7 +474,7 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
       columnStates: {
         ...columnStates,
         [statusKey]: {
-          selectedIndex: lastIndex,
+          selectedIssueId: issues.length > 0 ? issues[lastIndex].id : null,
           scrollOffset: newOffset,
         },
       },
@@ -446,9 +482,9 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   jumpToPage: (page: number) => {
-    const { data, selectedColumn, columnStates, itemsPerPage } = get();
+    const { sortedByStatus, selectedColumn, columnStates, itemsPerPage } = get();
     const statusKey = STATUS_KEYS[selectedColumn];
-    const issues = data.byStatus[statusKey] || [];
+    const issues = sortedByStatus[statusKey] || [];
     const totalPages = Math.ceil(issues.length / itemsPerPage) || 1;
 
     // Clamp page to valid range
@@ -460,7 +496,7 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
       columnStates: {
         ...columnStates,
         [statusKey]: {
-          selectedIndex: Math.max(0, newIndex),
+          selectedIssueId: newIndex >= 0 && newIndex < issues.length ? issues[newIndex].id : null,
           scrollOffset: newOffset,
         },
       },
@@ -637,7 +673,7 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
 
   // Sort actions
   cycleSortField: () => {
-    const { selectedColumn, sortConfig } = get();
+    const { selectedColumn, sortConfig, data } = get();
     const statusKeys: StatusKey[] = ['open', 'in_progress', 'blocked', 'closed'];
     const currentStatus = statusKeys[selectedColumn];
 
@@ -654,12 +690,18 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
       },
     };
 
-    set({ sortConfig: newSortConfig });
+    // Recompute sorted data with new config
+    const sortedByStatus = computeSortedByStatus(data, newSortConfig);
+
+    set({
+      sortConfig: newSortConfig,
+      sortedByStatus,
+    });
     saveSortConfig(newSortConfig);
   },
 
   toggleSortOrder: () => {
-    const { selectedColumn, sortConfig } = get();
+    const { selectedColumn, sortConfig, data } = get();
     const statusKeys: StatusKey[] = ['open', 'in_progress', 'blocked', 'closed'];
     const currentStatus = statusKeys[selectedColumn];
 
@@ -673,7 +715,13 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
       },
     };
 
-    set({ sortConfig: newSortConfig });
+    // Recompute sorted data with new config
+    const sortedByStatus = computeSortedByStatus(data, newSortConfig);
+
+    set({
+      sortConfig: newSortConfig,
+      sortedByStatus,
+    });
     saveSortConfig(newSortConfig);
   },
 }));
