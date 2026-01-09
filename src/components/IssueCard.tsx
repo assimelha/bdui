@@ -31,12 +31,18 @@ export function IssueCard({ issue, isSelected = false }: IssueCardProps) {
       paddingX={1}
       flexDirection="column"
       width={LAYOUT.columnWidth - 2}
+      flexGrow={0}
+      flexShrink={0}
     >
-      <Box flexDirection="column">
-        <Text bold color={isSelected ? theme.colors.primary : theme.colors.text}>
-          {truncateText(issue.title, LAYOUT.titleMaxLength)}
-        </Text>
-        <Text color={theme.colors.textDim}>{issue.id}</Text>
+      <Box flexDirection="column" flexGrow={0} flexShrink={0}>
+        <Box width={LAYOUT.columnWidth - 4}>
+          <Text bold color={isSelected ? theme.colors.primary : theme.colors.text} wrap="wrap">
+            {truncateText(issue.title, LAYOUT.titleMaxLength)}
+          </Text>
+        </Box>
+        <Box width={LAYOUT.columnWidth - 4}>
+          <Text color={theme.colors.textDim}>{issue.id}</Text>
+        </Box>
       </Box>
 
       <Box gap={1}>
