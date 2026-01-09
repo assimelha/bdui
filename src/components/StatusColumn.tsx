@@ -1,32 +1,38 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import type { Issue } from '../types';
+import type { ColumnSortConfig } from '../utils/constants';
 import { IssueCard } from './IssueCard';
 import { useBeadsStore } from '../state/store';
 import { getTheme } from '../themes/themes';
-import { LAYOUT, getStatusColor } from '../utils/constants';
+import { LAYOUT, getStatusColor, SORT_FIELD_LABELS, SORT_ORDER_SYMBOLS } from '../utils/constants';
 
 interface StatusColumnProps {
   title: string;
   issues: Issue[];
   isActive: boolean;
-  selectedIndex: number;
+  selectedIssueId: string | null;
   scrollOffset: number;
   itemsPerPage: number;
   statusKey: string;
+  sortConfig: ColumnSortConfig;
 }
 
 export function StatusColumn({
   title,
   issues,
   isActive,
-  selectedIndex,
+  selectedIssueId,
   scrollOffset,
   itemsPerPage,
   statusKey,
+  sortConfig,
 }: StatusColumnProps) {
   const currentTheme = useBeadsStore(state => state.currentTheme);
   const theme = getTheme(currentTheme);
+
+  // Find the visual index of the selected issue (its position in the sorted/filtered list)
+  const selectedIndex = selectedIssueId ? issues.findIndex(i => i.id === selectedIssueId) : -1;
 
   const totalIssues = issues.length;
   const visibleIssues = issues.slice(scrollOffset, scrollOffset + itemsPerPage);
@@ -43,14 +49,21 @@ export function StatusColumn({
     <Box flexDirection="column" paddingX={1} minWidth={LAYOUT.columnWidth}>
       {/* Header */}
       <Box
+        flexDirection="column"
         borderStyle={isActive ? 'double' : 'single'}
         borderColor={isActive ? theme.colors.primary : statusColor}
         paddingX={1}
-        justifyContent="center"
       >
-        <Text bold color={isActive ? theme.colors.primary : statusColor}>
-          {title} ({totalIssues})
-        </Text>
+        <Box justifyContent="center">
+          <Text bold color={isActive ? theme.colors.primary : statusColor}>
+            {title} ({totalIssues})
+          </Text>
+        </Box>
+        <Box justifyContent="center">
+          <Text dimColor>
+            {SORT_ORDER_SYMBOLS[sortConfig.sortOrder]} {SORT_FIELD_LABELS[sortConfig.sortBy]}
+          </Text>
+        </Box>
       </Box>
 
       {/* Scroll up indicator - improved visibility */}

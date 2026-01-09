@@ -52,6 +52,13 @@ export function HelpOverlay() {
         </Box>
 
         <Box flexDirection="column" gap={0} marginTop={1}>
+          <Text bold color={theme.colors.warning}>Sorting (Kanban only):</Text>
+          <Text>  <Text color={theme.colors.primary}>s</Text>              Cycle sort field (priority→created→updated→title)</Text>
+          <Text>  <Text color={theme.colors.primary}>S</Text>              Toggle sort order (↑ asc ↔ ↓ desc)</Text>
+          <Text color={theme.colors.textDim}>  (Each column has independent sort configuration)</Text>
+        </Box>
+
+        <Box flexDirection="column" gap={0} marginTop={1}>
           <Text bold color={theme.colors.warning}>Actions:</Text>
           <Text>  <Text color={theme.colors.primary}>N</Text>              Create new issue (Shift+N)</Text>
           <Text>  <Text color={theme.colors.primary}>e</Text>              Edit selected issue</Text>

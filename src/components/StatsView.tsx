@@ -157,11 +157,11 @@ export function StatsView({ issues, totalIssues, terminalWidth, terminalHeight }
           <Box flexDirection="column" borderStyle="round" borderColor={theme.colors.border} paddingX={1}>
             <Text bold color={theme.colors.primary}>Priority</Text>
             <Box flexDirection="column">
-              {renderBar('P4 Critical', stats.priorityCounts.p4, issues.length, theme.colors.priorityCritical)}
-              {renderBar('P3 High', stats.priorityCounts.p3, issues.length, theme.colors.priorityHigh)}
+              {renderBar('P0 Critical', stats.priorityCounts.p0, issues.length, theme.colors.priorityCritical)}
+              {renderBar('P1 High', stats.priorityCounts.p1, issues.length, theme.colors.priorityHigh)}
               {renderBar('P2 Medium', stats.priorityCounts.p2, issues.length, theme.colors.priorityMedium)}
-              {renderBar('P1 Low', stats.priorityCounts.p1, issues.length, theme.colors.priorityLow)}
-              {renderBar('P0 Lowest', stats.priorityCounts.p0, issues.length, theme.colors.priorityLowest)}
+              {renderBar('P3 Low', stats.priorityCounts.p3, issues.length, theme.colors.priorityLow)}
+              {renderBar('P4 Lowest', stats.priorityCounts.p4, issues.length, theme.colors.priorityLowest)}
             </Box>
           </Box>
 

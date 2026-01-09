@@ -15,13 +15,13 @@ export const LAYOUT = {
   minTerminalHeight: 20,
 } as const;
 
-// Priority labels (0-4, where 4 is highest)
+// Priority labels (0-4, where 0 is highest)
 export const PRIORITY_LABELS: Record<number, string> = {
-  0: 'Lowest',
-  1: 'Low',
+  0: 'Critical',
+  1: 'High',
   2: 'Medium',
-  3: 'High',
-  4: 'Critical',
+  3: 'Low',
+  4: 'Lowest',
 };
 
 // Status labels
@@ -49,14 +49,51 @@ export const VIEW_NAMES: Record<string, string> = {
   stats: 'Stats',
 };
 
+// Sort types and configuration
+export type SortField = 'priority' | 'created' | 'updated' | 'title';
+export type SortOrder = 'asc' | 'desc';
+
+export interface ColumnSortConfig {
+  sortBy: SortField;
+  sortOrder: SortOrder;
+}
+
+export interface SortConfig {
+  open: ColumnSortConfig;
+  in_progress: ColumnSortConfig;
+  blocked: ColumnSortConfig;
+  closed: ColumnSortConfig;
+}
+
+export const DEFAULT_SORT_CONFIG: SortConfig = {
+  open: { sortBy: 'priority', sortOrder: 'desc' },
+  in_progress: { sortBy: 'priority', sortOrder: 'desc' },
+  blocked: { sortBy: 'priority', sortOrder: 'desc' },
+  closed: { sortBy: 'priority', sortOrder: 'desc' },
+};
+
+// Sort field labels for UI display
+export const SORT_FIELD_LABELS: Record<SortField, string> = {
+  priority: 'Priority',
+  created: 'Created',
+  updated: 'Updated',
+  title: 'Title',
+};
+
+// Sort order symbols for compact display
+export const SORT_ORDER_SYMBOLS: Record<SortOrder, string> = {
+  asc: '↑',
+  desc: '↓',
+};
+
 // Helper function to get priority color from theme
 export function getPriorityColor(priority: number, theme: Theme): string {
   const colors: Record<number, string> = {
-    0: theme.colors.priorityLowest,
-    1: theme.colors.priorityLow,
+    0: theme.colors.priorityCritical,
+    1: theme.colors.priorityHigh,
     2: theme.colors.priorityMedium,
-    3: theme.colors.priorityHigh,
-    4: theme.colors.priorityCritical,
+    3: theme.colors.priorityLow,
+    4: theme.colors.priorityLowest,
   };
   return colors[priority] || theme.colors.textDim;
 }

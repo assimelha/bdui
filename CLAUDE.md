@@ -34,6 +34,8 @@ bun run build:linux   # x64 only
 bun run build:windows # x64 only
 ```
 
+The `test:notifications` command verifies that notification icons are working correctly on your platform. It triggers both "completed" and "blocked" notifications with custom icons.
+
 ## Architecture
 
 ### Data Flow
@@ -107,8 +109,36 @@ The app has **modal input handling** in `App.tsx`:
   - Edit form (`showEditForm=true`) - EditIssueForm captures input
   - Export dialog (`showExportDialog=true`) - ExportDialog captures input
   - Theme selector (`showThemeSelector=true`) - ThemeSelector captures input
+  - Command bar (`showJumpToPage=true`) - CommandBar captures input for vim-style commands
 
 When any modal is active, normal navigation is disabled to avoid conflicts.
+
+### Vim-style Command Mode
+
+The app supports a command bar (CommandBar.tsx) triggered with `:` key, inspired by vim editors. Supported commands include:
+
+**Navigation**:
+- Pure number (e.g., `:5`) - Jump to page
+- Issue ID (e.g., `:BD-abc` or `:abc`) - Jump to specific issue
+
+**View switching**:
+- `:kanban`, `:tree`, `:graph`, `:stats` - Switch between views
+
+**Theme management**:
+- `:theme [name]` - Switch theme (default, ocean, forest, sunset, monochrome)
+
+**Status changes**:
+- `:close`, `:done`, `:finish` - Mark issue as closed
+- `:open` - Mark issue as open
+- `:block` - Mark issue as blocked
+- `:progress` - Mark issue as in_progress
+
+**Other**:
+- `:reload`, `:refresh` - Manually reload database
+- `:help`, `:h` - Show help overlay
+- `:quit`, `:q`, `:exit` - Exit application
+
+Users can type `:` followed by a command and press Enter. ESC cancels.
 
 ### Filtering Implementation
 
@@ -129,6 +159,49 @@ The app reads from bd's existing schema:
   - `type='parent-child'`: depends_on_id is parent of issue_id
   - `type='blocks'`: issue_id is blocked by depends_on_id
 
+## Store Actions Reference
+
+The Zustand store (`src/state/store.ts`) provides these key actions:
+
+**Navigation & Selection**:
+- `moveUp()`, `moveDown()` - Navigate within current column
+- `moveLeft()`, `moveRight()` - Change active column (Kanban view)
+- `jumpToFirst()`, `jumpToLast()` - Jump to first/last issue in column
+- `jumpToPage(page)` - Jump to specific page
+- `selectIssueById(id)` - Jump to and select issue by ID
+
+**UI State**:
+- `toggleHelp()` - Show/hide help overlay
+- `toggleDetails()` - Show/hide detail panel
+- `toggleNotifications()` - Enable/disable notifications
+- `toggleSearch()` - Open/close search modal
+- `toggleFilter()` - Open/close filter modal
+- `toggleExportDialog()` - Open/close export dialog
+- `toggleThemeSelector()` - Open/close theme selector
+- `toggleJumpToPage()` - Open/close command bar
+
+**View & Theme**:
+- `setViewMode(mode)` - Switch view (kanban, tree, graph, stats)
+- `setTheme(name)` - Change theme
+- `setTerminalSize(width, height)` - Update terminal dimensions
+
+**Filtering & Search**:
+- `setSearchQuery(query)` - Update search text
+- `setFilter(filter)` - Update active filters
+- `clearFilters()` - Clear all search and filter criteria
+- `getFilteredIssues()` - Get filtered issue list (used by Board.tsx)
+
+**Data & State**:
+- `setData(data)` - Update issue data from database (triggers notifications)
+- `setReloadCallback(callback)` - Register callback for manual reload
+- `showToast(message, type)` - Display toast message
+- `getSelectedIssue()` - Get currently selected issue
+- `getCurrentPage()`, `getTotalPages()` - Pagination info
+
+**Navigation Actions**:
+- `navigateToCreateIssue()` - Open create issue form
+- `navigateToEditIssue()` - Open edit form for selected issue
+
 ## Key Patterns
 
 ### Issue Creation and Modification
@@ -140,6 +213,38 @@ The app uses `bd` CLI commands via `src/bd/commands.ts` to modify the database:
 - After any modification, the file watcher detects the database change and triggers a UI refresh
 - Forms (CreateIssueForm, EditIssueForm) call these functions and then invoke `reloadCallback()` to ensure immediate update
 
+### Toast System
+
+For user feedback (success/error/info messages):
+
+```typescript
+const showToast = useBeadsStore(state => state.showToast);
+showToast('Issue created successfully', 'success');
+showToast('Failed to save', 'error');
+showToast('Action completed', 'info');
+```
+
+Toast messages are displayed at the bottom of the screen and automatically dismiss after a timeout. The Toast component handles rendering.
+
+### Modal Closure Pattern
+
+When opening a new modal, ensure other modals are closed to avoid overlapping. When adding new modals, follow this pattern:
+
+```typescript
+// In store actions
+toggleSearchModal: () => {
+  set(state => ({
+    showSearch: !state.showSearch,
+    showFilter: false,        // close other modals
+    showExportDialog: false,
+    showThemeSelector: false,
+    showJumpToPage: false,
+  }));
+}
+```
+
+All toggle actions should follow this pattern to prevent modal conflicts.
+
 ### Adding New View Modes
 
 1. Add view type to `viewMode` union type in `store.ts`
@@ -147,6 +252,7 @@ The app uses `bd` CLI commands via `src/bd/commands.ts` to modify the database:
 3. Import and render in `Board.tsx`'s view router
 4. Add keyboard shortcut in `App.tsx` (numbers 5-9 still available)
 5. Update `HelpOverlay.tsx` with new shortcut
+6. Add view name to `VIEW_NAMES` in `src/utils/constants.ts`
 
 ### Adding New Filters
 
@@ -199,6 +305,57 @@ Uses `node-notifier` for cross-platform desktop notifications:
   - Platform-specific support: macOS (contentImage/appIcon), Linux/Windows (icon parameter)
   - Automatic fallback if icons are missing
 
+## Constants & Mappings
+
+All label mappings and constants are centralized in `src/utils/constants.ts`:
+
+**Priority Labels**:
+```
+0: 'Lowest', 1: 'Low', 2: 'Medium', 3: 'High', 4: 'Critical'
+```
+
+**Status Labels**:
+```
+open: 'Open', in_progress: 'In Progress', blocked: 'Blocked', closed: 'Closed'
+```
+
+**Issue Type Labels**:
+```
+epic: 'Epic', feature: 'Feature', bug: 'Bug', task: 'Task', chore: 'Chore'
+```
+
+**View Names** (for footer):
+```
+kanban: 'Kanban', tree: 'Tree', graph: 'Graph', stats: 'Stats'
+```
+
+**Layout Constants**:
+```
+columnWidth: 37, detailPanelWidth: 55, uiOverhead: 17, issueCardHeight: 8
+```
+
+Helper functions available:
+- `getPriorityColor(priority, theme)` - Get color for priority level
+- `getStatusColor(status, theme)` - Get color for status
+- `getTypeColor(type, theme)` - Get color for issue type
+- `truncateText(text, maxLength, atWordBoundary)` - Truncate with ellipsis
+- `hasActiveFilters(filter, searchQuery)` - Check if filters are active
+- `countActiveFilters(filter, searchQuery)` - Count active filters
+
+### Form Validation
+
+Use `src/utils/constants.ts` VALIDATION rules:
+
+```typescript
+validateTitle(title) -> { valid: boolean; error?: string }
+```
+
+Validation rules defined:
+- **title**: 1-200 characters, required
+- **description**: max 5000 characters, optional
+- **assignee**: max 100 characters, optional
+- **labels**: max 500 characters, optional
+
 ## Component Guidelines
 
 - **StatusColumn**: Receives issues array, renders visible slice based on `scrollOffset` and `itemsPerPage`
@@ -213,6 +370,11 @@ Uses `node-notifier` for cross-platform desktop notifications:
 - **TreeView**: Hierarchical view, shows parent-child relationships, expandable tree structure
 - **DependencyGraph**: ASCII art visualization, shows blocking relationships and dependency levels
 - **StatsView**: Analytics dashboard with bar charts for status/priority/type distribution, top assignees/labels
+- **CommandBar**: Vim-style command input (`:command`), handles navigation, view switching, theme changes, status updates
+- **ConfirmDialog**: Modal confirmation dialog for destructive actions
+- **Toast**: Small notification at bottom of screen for feedback (success/error/info)
+- **FiltersBanner**: Shows active filters/search at top of Kanban view
+- **Footer**: Displays current view, page info, terminal dimensions, notification state
 
 ## Bun-Specific Code
 

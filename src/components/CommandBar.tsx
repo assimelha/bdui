@@ -3,6 +3,8 @@ import { Box, Text, useInput, useApp } from 'ink';
 import { useBeadsStore } from '../state/store';
 import { getTheme } from '../themes/themes';
 import { updateIssue } from '../bd/commands';
+import { saveSortConfig } from '../utils/persistence';
+import type { SortField, SortOrder, ColumnSortConfig } from '../utils/constants';
 
 type CommandMode = 'command' | 'jump';
 
@@ -30,6 +32,8 @@ export function CommandBar() {
   const toggleHelp = useBeadsStore(state => state.toggleHelp);
   const currentTheme = useBeadsStore(state => state.currentTheme);
   const theme = getTheme(currentTheme);
+  const selectedColumn = useBeadsStore(state => state.selectedColumn);
+  const sortConfig = useBeadsStore(state => state.sortConfig);
 
   const [input, setInput] = useState('');
   const totalPages = getTotalPages();
@@ -176,6 +180,42 @@ export function CommandBar() {
       case 'refresh':
         if (reloadCallback) reloadCallback();
         return { success: true, message: 'Refreshed' };
+
+      // Sort commands
+      case 'sort':
+        if (args.length === 0) {
+          return { success: false, message: 'Usage: :sort [priority|created|updated|title|asc|desc]' };
+        }
+        const statusKeys = ['open', 'in_progress', 'blocked', 'closed'] as const;
+        const currentStatus = statusKeys[selectedColumn];
+        const sortArg = args[0].toLowerCase();
+        const validFields: SortField[] = ['priority', 'created', 'updated', 'title'];
+        const validOrders: SortOrder[] = ['asc', 'desc'];
+
+        let newSortConfig = { ...sortConfig };
+        let updated = false;
+
+        if ((validFields as string[]).includes(sortArg)) {
+          newSortConfig[currentStatus] = {
+            ...newSortConfig[currentStatus],
+            sortBy: sortArg as SortField,
+          };
+          updated = true;
+        } else if ((validOrders as string[]).includes(sortArg)) {
+          newSortConfig[currentStatus] = {
+            ...newSortConfig[currentStatus],
+            sortOrder: sortArg as SortOrder,
+          };
+          updated = true;
+        }
+
+        if (updated) {
+          useBeadsStore.setState({ sortConfig: newSortConfig });
+          saveSortConfig(newSortConfig);
+          const config = newSortConfig[currentStatus];
+          return { success: true, message: `Sorted by ${config.sortBy} (${config.sortOrder})` };
+        }
+        return { success: false, message: 'Invalid sort argument' };
 
       default:
         return { success: false, message: `Unknown command: ${command}` };
