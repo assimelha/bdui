@@ -136,7 +136,7 @@ export function FilterPanel() {
   };
 
   const getPriorityLabel = (priority: number) => {
-    const labels = ['P0 (Lowest)', 'P1 (Low)', 'P2 (Medium)', 'P3 (High)', 'P4 (Critical)'];
+    const labels = ['P0 (Critical)', 'P1 (High)', 'P2 (Medium)', 'P3 (Low)', 'P4 (Lowest)'];
     return labels[priority];
   };
 
