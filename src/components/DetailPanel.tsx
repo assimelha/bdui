@@ -62,9 +62,13 @@ export function DetailPanel({ issue, maxHeight }: DetailPanelProps) {
       overflow="hidden"
     >
       {/* Header */}
-      <Box flexDirection="column" marginBottom={1}>
-        <Text bold color={theme.colors.primary}>{issue.title}</Text>
-        <Text color={theme.colors.textDim}>{issue.id}</Text>
+      <Box flexDirection="column" marginBottom={1} flexGrow={0} flexShrink={0}>
+        <Box width={LAYOUT.detailPanelWidth - 4}>
+          <Text bold color={theme.colors.primary} wrap="wrap">{issue.title}</Text>
+        </Box>
+        <Box width={LAYOUT.detailPanelWidth - 4}>
+          <Text color={theme.colors.textDim}>{issue.id}</Text>
+        </Box>
       </Box>
 
       {/* Metadata */}
