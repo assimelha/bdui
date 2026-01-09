@@ -106,6 +106,8 @@ export function App() {
   const clearFilters = useBeadsStore(state => state.clearFilters);
   const setViewMode = useBeadsStore(state => state.setViewMode);
   const viewMode = useBeadsStore(state => state.viewMode);
+  const cycleSortField = useBeadsStore(state => state.cycleSortField);
+  const toggleSortOrder = useBeadsStore(state => state.toggleSortOrder);
   const showSearch = useBeadsStore(state => state.showSearch);
   const showFilter = useBeadsStore(state => state.showFilter);
   const showExportDialog = useBeadsStore(state => state.showExportDialog);
@@ -235,6 +237,18 @@ export function App() {
     // Toggle notifications
     if (input === 'n') {
       toggleNotifications();
+    }
+
+    // Cycle sort field
+    if (input === 's') {
+      cycleSortField();
+      return;
+    }
+
+    // Toggle sort order
+    if (input === 'S') { // Shift+s
+      toggleSortOrder();
+      return;
     }
 
     // View switching

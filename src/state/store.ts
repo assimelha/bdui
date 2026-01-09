@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import type { BeadsData, Issue } from '../types';
 import { detectStatusChanges, notifyStatusChange } from '../utils/notifications';
-import { LAYOUT } from '../utils/constants';
+import { LAYOUT, DEFAULT_SORT_CONFIG, type SortConfig, type SortField, type SortOrder } from '../utils/constants';
+import { loadConfig, saveSortConfig } from '../utils/persistence';
 
 type StatusKey = 'open' | 'closed' | 'in_progress' | 'blocked';
 
@@ -74,6 +75,9 @@ interface BeadsStore {
     priority?: number;
   };
 
+  // Sort configuration per column
+  sortConfig: SortConfig;
+
   // Actions
   setData: (data: BeadsData) => void;
   setReloadCallback: (callback: (() => void) | null) => void;
@@ -122,6 +126,10 @@ interface BeadsStore {
   addToUndoHistory: (entry: Omit<UndoEntry, 'timestamp'>) => void;
   undo: () => UndoEntry | null;
   clearUndoHistory: () => void;
+
+  // Sort actions
+  cycleSortField: () => void;
+  toggleSortOrder: () => void;
 }
 
 const STATUS_KEYS: StatusKey[] = ['open', 'in_progress', 'blocked', 'closed'];
@@ -185,6 +193,8 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   maxUndoHistory: 10,
 
   filter: {},
+
+  sortConfig: loadConfig().sortConfig,
 
   setTerminalSize: (width, height) => {
     const uiOverhead = LAYOUT.uiOverhead;
@@ -624,6 +634,48 @@ export const useBeadsStore = create<BeadsStore>((set, get) => ({
   },
 
   clearUndoHistory: () => set({ undoHistory: [] }),
+
+  // Sort actions
+  cycleSortField: () => {
+    const { selectedColumn, sortConfig } = get();
+    const statusKeys: StatusKey[] = ['open', 'in_progress', 'blocked', 'closed'];
+    const currentStatus = statusKeys[selectedColumn];
+
+    const fieldCycle: SortField[] = ['priority', 'created', 'updated', 'title'];
+    const currentField = sortConfig[currentStatus].sortBy;
+    const currentIndex = fieldCycle.indexOf(currentField);
+    const nextField = fieldCycle[(currentIndex + 1) % fieldCycle.length];
+
+    const newSortConfig = {
+      ...sortConfig,
+      [currentStatus]: {
+        ...sortConfig[currentStatus],
+        sortBy: nextField,
+      },
+    };
+
+    set({ sortConfig: newSortConfig });
+    saveSortConfig(newSortConfig);
+  },
+
+  toggleSortOrder: () => {
+    const { selectedColumn, sortConfig } = get();
+    const statusKeys: StatusKey[] = ['open', 'in_progress', 'blocked', 'closed'];
+    const currentStatus = statusKeys[selectedColumn];
+
+    const newOrder: SortOrder = sortConfig[currentStatus].sortOrder === 'asc' ? 'desc' : 'asc';
+
+    const newSortConfig = {
+      ...sortConfig,
+      [currentStatus]: {
+        ...sortConfig[currentStatus],
+        sortOrder: newOrder,
+      },
+    };
+
+    set({ sortConfig: newSortConfig });
+    saveSortConfig(newSortConfig);
+  },
 }));
 
 export { STATUS_KEYS };
