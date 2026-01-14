@@ -28,7 +28,7 @@ function buildDependencyLevels(data: BeadsData): GraphNode[][] {
     if (processed.has(issue.id)) {
       // Already computed
       const found = levels.findIndex(level =>
-        level.some(node => node.issue.id === issue.id)
+        level && level.some(node => node.issue.id === issue.id)
       );
       return found >= 0 ? found : 0;
     }
